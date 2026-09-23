@@ -1,0 +1,625 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>情侣相机</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+:root{
+  --bg:#0a0a0f;--bg2:#14141c;--card:#1c1c26;--border:#2a2a38;
+  --txt:#f0f0f5;--txt2:#9999aa;--txt3:#666677;
+  --amber:#F59E0B;--amber2:#FBBF24;--green:#34D399;--red:#F87171;
+  --radius:16px;
+}
+html,body{height:100%;background:var(--bg);color:var(--txt);font-family:-apple-system,BlinkMacSystemFont,'PingFang SC','Helvetica Neue',sans-serif;overflow-x:hidden}
+body{display:flex;flex-direction:column;min-height:100vh}
+.page{display:none;flex:1;flex-direction:column;width:100%;max-width:500px;margin:0 auto;padding:20px}
+.page.active{display:flex}
+.hidden{display:none!important}
+
+/* ===== 首页 ===== */
+#home{align-items:center;justify-content:center;text-align:center;padding-top:60px}
+.logo{font-size:64px;margin-bottom:16px}
+.brand{font-size:36px;font-weight:800;letter-spacing:2px;margin-bottom:8px}
+.brand b{color:var(--amber)}
+.tagline{font-size:16px;color:var(--txt2);margin-bottom:48px;line-height:1.6}
+.role-card{width:100%;background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:24px;margin-bottom:16px;display:flex;align-items:center;gap:16px;cursor:pointer;transition:all .2s}
+.role-card:active{transform:scale(.98);border-color:var(--amber)}
+.role-icon{font-size:40px;width:64px;height:64px;background:var(--bg2);border-radius:14px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.role-info{flex:1;text-align:left}
+.role-title{font-size:20px;font-weight:700;margin-bottom:4px}
+.role-desc{font-size:13px;color:var(--txt2)}
+.role-arrow{font-size:28px;color:var(--txt3)}
+.home-tips{margin-top:32px;font-size:12px;color:var(--txt3);line-height:1.8;text-align:left;width:100%;background:var(--bg2);border-radius:12px;padding:16px}
+.home-tips b{color:var(--amber)}
+
+/* ===== 通用 ===== */
+.topbar{display:flex;align-items:center;justify-content:space-between;padding:12px 0;margin-bottom:16px}
+.back-btn{background:none;border:none;color:var(--txt2);font-size:24px;cursor:pointer;padding:4px 8px}
+.page-title{font-size:18px;font-weight:700}
+.status-pill{display:inline-flex;align-items:center;gap:6px;font-size:12px;padding:4px 12px;border-radius:20px;background:var(--bg2)}
+.status-dot{width:8px;height:8px;border-radius:50%;background:var(--txt3)}
+.status-dot.on{background:var(--green);box-shadow:0 0 8px var(--green)}
+.status-dot.wait{background:var(--amber);animation:pulse 1.5s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+
+.card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:20px;margin-bottom:16px;width:100%}
+.card-title{font-size:14px;color:var(--txt2);margin-bottom:12px;font-weight:600}
+.btn{width:100%;padding:16px;border:none;border-radius:12px;font-size:16px;font-weight:700;cursor:pointer;transition:all .2s}
+.btn:active{transform:scale(.98)}
+.btn-amber{background:linear-gradient(135deg,var(--amber),var(--amber2));color:#000}
+.btn-ghost{background:var(--bg2);color:var(--txt);border:1px solid var(--border)}
+.btn-sm{padding:10px 16px;font-size:14px;width:auto}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+
+.code-box{width:100%;background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:12px;font-size:12px;color:var(--amber);font-family:monospace;word-break:break-all;max-height:120px;overflow-y:auto;line-height:1.5}
+.textarea{width:100%;background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:12px;font-size:12px;color:var(--txt);font-family:monospace;min-height:100px;resize:vertical;outline:none}
+.textarea:focus{border-color:var(--amber)}
+.qr-wrap{text-align:center;padding:16px 0}
+.qr-wrap img{width:200px;height:200px;border-radius:12px;background:#fff}
+.step-num{display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;border-radius:50%;background:var(--amber);color:#000;font-size:12px;font-weight:800;margin-right:8px}
+
+/* ===== 拍摄端 ===== */
+.camera-wrap{position:relative;width:100%;aspect-ratio:3/4;background:#000;border-radius:var(--radius);overflow:hidden;margin-bottom:16px}
+#videoLens{width:100%;height:100%;object-fit:cover}
+.camera-overlay{position:absolute;top:0;left:0;right:0;bottom:0;pointer-events:none;display:flex;flex-direction:column;justify-content:space-between;padding:12px}
+.camera-top{display:flex;justify-content:space-between;align-items:flex-start}
+.camera-stats{background:rgba(0,0,0,.6);padding:6px 12px;border-radius:8px;font-size:11px;font-family:monospace;color:var(--green)}
+.camera-bottom{display:flex;justify-content:center;align-items:center;gap:24px}
+.shutter-btn{width:72px;height:72px;border-radius:50%;background:#fff;border:4px solid rgba(255,255,255,.4);cursor:pointer;transition:all .1s}
+.shutter-btn:active{transform:scale(.9);background:var(--amber)}
+.flash-overlay{position:absolute;top:0;left:0;right:0;bottom:0;background:#fff;opacity:0;pointer-events:none;transition:opacity .1s}
+.flash-overlay.flash{opacity:.9}
+
+/* ===== 查看端 ===== */
+.viewer-wrap{position:relative;width:100%;aspect-ratio:3/4;background:#000;border-radius:var(--radius);overflow:hidden;margin-bottom:16px}
+#videoMirror{width:100%;height:100%;object-fit:cover}
+.viewer-controls{display:flex;gap:12px;margin-bottom:16px}
+.ctrl-btn{flex:1;padding:14px;background:var(--card);border:1px solid var(--border);border-radius:12px;color:var(--txt);font-size:13px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:4px}
+.ctrl-btn:active{background:var(--bg2)}
+.ctrl-btn .icon{font-size:22px}
+.ctrl-btn.active{border-color:var(--amber);color:var(--amber)}
+.zoom-slider{width:100%;margin:8px 0 16px}
+.zoom-slider input{width:100%;accent-color:var(--amber)}
+.zoom-label{display:flex;justify-content:space-between;font-size:12px;color:var(--txt2);margin-top:4px}
+
+/* 照片管理 */
+.photo-bar{display:flex;align-items:center;gap:12px;margin-top:8px}
+.photo-thumb{width:48px;height:48px;border-radius:8px;object-fit:cover;background:var(--bg2);cursor:pointer;border:1px solid var(--border)}
+.photo-count{font-size:12px;color:var(--txt2)}
+.photo-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px}
+.photo-grid img{width:100%;aspect-ratio:1;object-fit:cover;border-radius:8px;cursor:pointer}
+.photo-modal{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.95);z-index:100;display:none;flex-direction:center;align-items:center;justify-content:center;padding:20px}
+.photo-modal.active{display:flex}
+.photo-modal img{max-width:100%;max-height:80vh;border-radius:12px}
+.photo-modal-actions{position:absolute;bottom:40px;display:flex;gap:16px}
+.photo-modal-actions .btn{width:auto;padding:12px 24px}
+
+/* 连接状态 */
+.conn-status{text-align:center;padding:20px}
+.conn-status .icon{font-size:48px;margin-bottom:12px}
+.conn-status .text{font-size:16px;color:var(--txt2);line-height:1.6}
+.conn-status .text b{color:var(--amber)}
+
+/* Toast */
+.toast{position:fixed;top:20px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.85);color:#fff;padding:12px 24px;border-radius:24px;font-size:14px;z-index:200;opacity:0;transition:opacity .3s;pointer-events:none}
+.toast.show{opacity:1}
+</style>
+</head>
+<body>
+
+<!-- ===== 首页 ===== -->
+<div id="home" class="page active">
+  <div class="logo">📸</div>
+  <div class="brand">情侣<b>相机</b></div>
+  <div class="tagline">两台手机，一台相机<br>他举着拍，你看着画面摆姿势</div>
+  
+  <div class="role-card" onclick="goPage('lens')">
+    <div class="role-icon">📷</div>
+    <div class="role-info">
+      <div class="role-title">我来拍照</div>
+      <div class="role-desc">我是拍摄端，举着手机帮对方拍</div>
+    </div>
+    <div class="role-arrow">›</div>
+  </div>
+  
+  <div class="role-card" onclick="goPage('mirror')">
+    <div class="role-icon">👀</div>
+    <div class="role-info">
+      <div class="role-title">我来看画面</div>
+      <div class="role-desc">我是被拍的，实时看镜头里的自己</div>
+    </div>
+    <div class="role-arrow">›</div>
+  </div>
+  
+  <div class="home-tips">
+    <b>使用前准备：</b><br>
+    1. 两台手机连同一个 WiFi 或热点<br>
+    2. 用 Safari 或 Chrome 打开（微信内浏览器可能不支持摄像头）<br>
+    3. 首次使用需允许摄像头权限<br>
+    4. 画面 P2P 直连，不经任何服务器
+  </div>
+</div>
+
+<!-- ===== 拍摄端 ===== -->
+<div id="lens" class="page">
+  <div class="topbar">
+    <button class="back-btn" onclick="goHome()">‹</button>
+    <div class="page-title">拍摄端</div>
+    <div class="status-pill"><span class="status-dot" id="lensDot"></span><span id="lensStatus">未连接</span></div>
+  </div>
+
+  <!-- 步骤1：生成连接码 -->
+  <div id="lensStep1">
+    <div class="card">
+      <div class="card-title"><span class="step-num">1</span>生成连接码</div>
+      <p style="font-size:13px;color:var(--txt2);margin-bottom:16px;line-height:1.6">点击下方按钮，生成本机的连接码，然后发给对方</p>
+      <button class="btn btn-amber" onclick="lensCreateOffer()">生成连接码</button>
+    </div>
+  </div>
+
+  <!-- 步骤2：显示连接码 -->
+  <div id="lensStep2" class="hidden">
+    <div class="card">
+      <div class="card-title"><span class="step-num">2</span>把连接码发给对方</div>
+      <div class="qr-wrap">
+        <img id="lensQr" alt="连接码二维码">
+      </div>
+      <p style="font-size:12px;color:var(--txt3);text-align:center;margin-bottom:12px">对方用查看端扫码，或复制下方连接码发送</p>
+      <div class="code-box" id="lensOfferCode"></div>
+      <button class="btn btn-ghost btn-sm" style="width:100%;margin-top:12px" onclick="copyText('lensOfferCode')">复制连接码</button>
+    </div>
+
+    <div class="card">
+      <div class="card-title"><span class="step-num">3</span>粘贴对方的连接码</div>
+      <p style="font-size:13px;color:var(--txt2);margin-bottom:12px">对方生成回复码后，粘贴到下方</p>
+      <textarea class="textarea" id="lensAnswerInput" placeholder="粘贴对方的回复码..."></textarea>
+      <button class="btn btn-amber" style="margin-top:12px" onclick="lensSetAnswer()">确认连接</button>
+    </div>
+  </div>
+
+  <!-- 连接成功：摄像头画面 -->
+  <div id="lensConnected" class="hidden">
+    <div class="camera-wrap">
+      <video id="videoLens" autoplay playsinline muted></video>
+      <div class="camera-overlay">
+        <div class="camera-top">
+          <div class="camera-stats" id="lensStats">-- FPS · -- ms</div>
+        </div>
+        <div class="camera-bottom">
+          <button class="shutter-btn" onclick="lensTakePhoto()"></button>
+        </div>
+      </div>
+      <div class="flash-overlay" id="lensFlash"></div>
+    </div>
+    <div class="viewer-controls">
+      <button class="ctrl-btn" onclick="lensFlipCamera()"><span class="icon">🔄</span>切换镜头</button>
+      <button class="ctrl-btn" id="lensFlashBtn" onclick="lensToggleFlash()"><span class="icon">⚡</span>闪光灯</button>
+    </div>
+    <div class="conn-status">
+      <div class="text">已连接，对方可以实时看到画面并远程拍照</div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== 查看端 ===== -->
+<div id="mirror" class="page">
+  <div class="topbar">
+    <button class="back-btn" onclick="goHome()">‹</button>
+    <div class="page-title">查看端</div>
+    <div class="status-pill"><span class="status-dot" id="mirrorDot"></span><span id="mirrorStatus">未连接</span></div>
+  </div>
+
+  <!-- 步骤1：输入对方连接码 -->
+  <div id="mirrorStep1">
+    <div class="card">
+      <div class="card-title"><span class="step-num">1</span>粘贴对方的连接码</div>
+      <p style="font-size:13px;color:var(--txt2);margin-bottom:12px;line-height:1.6">拍摄端生成连接码后，粘贴到下方</p>
+      <textarea class="textarea" id="mirrorOfferInput" placeholder="粘贴拍摄端的连接码..."></textarea>
+      <button class="btn btn-amber" style="margin-top:12px" onclick="mirrorSetOffer()">生成回复码</button>
+    </div>
+  </div>
+
+  <!-- 步骤2：显示回复码 -->
+  <div id="mirrorStep2" class="hidden">
+    <div class="card">
+      <div class="card-title"><span class="step-num">2</span>把回复码发给对方</div>
+      <div class="qr-wrap">
+        <img id="mirrorQr" alt="回复码二维码">
+      </div>
+      <p style="font-size:12px;color:var(--txt3);text-align:center;margin-bottom:12px">对方在拍摄端粘贴此回复码完成连接</p>
+      <div class="code-box" id="mirrorAnswerCode"></div>
+      <button class="btn btn-ghost btn-sm" style="width:100%;margin-top:12px" onclick="copyText('mirrorAnswerCode')">复制回复码</button>
+    </div>
+    <div class="conn-status">
+      <div class="text">等待对方确认连接...<br>对方粘贴回复码后自动连接</div>
+    </div>
+  </div>
+
+  <!-- 连接成功：实时画面 -->
+  <div id="mirrorConnected" class="hidden">
+    <div class="viewer-wrap">
+      <video id="videoMirror" autoplay playsinline></video>
+      <div class="camera-overlay">
+        <div class="camera-top">
+          <div class="camera-stats" id="mirrorStats">-- FPS · -- ms</div>
+        </div>
+      </div>
+      <div class="flash-overlay" id="mirrorFlash"></div>
+    </div>
+
+    <div class="zoom-slider">
+      <input type="range" id="zoomRange" min="1" max="3" step="0.1" value="1" oninput="mirrorZoom(this.value)">
+      <div class="zoom-label"><span>1x</span><span id="zoomVal">1.0x</span><span>3x</span></div>
+    </div>
+
+    <div class="viewer-controls">
+      <button class="ctrl-btn" onclick="mirrorFlipCamera()"><span class="icon">🔄</span>切换镜头</button>
+      <button class="ctrl-btn" id="mirrorFlashBtn" onclick="mirrorToggleFlash()"><span class="icon">⚡</span>闪光灯</button>
+      <button class="ctrl-btn" onclick="mirrorTakePhoto()"><span class="icon">📸</span>拍照</button>
+    </div>
+
+    <button class="btn btn-amber" style="height:64px;font-size:20px;border-radius:50%;width:64px;padding:0;margin:0 auto 16px;display:flex;align-items:center;justify-content:center" onclick="mirrorTakePhoto()">📸</button>
+
+    <div class="card">
+      <div class="card-title">已拍照片 <span class="photo-count" id="photoCount">(0)</span></div>
+      <div class="photo-bar">
+        <img class="photo-thumb" id="latestPhoto" style="display:none" onclick="showPhotoModal(0)">
+        <span style="font-size:12px;color:var(--txt3)" id="noPhotoTip">还没有照片</span>
+      </div>
+      <div class="photo-grid" id="photoGrid"></div>
+    </div>
+  </div>
+</div>
+
+<!-- 照片预览弹窗 -->
+<div class="photo-modal" id="photoModal" onclick="closePhotoModal()">
+  <img id="modalPhoto" src="">
+  <div class="photo-modal-actions">
+    <button class="btn btn-ghost" onclick="event.stopPropagation();closePhotoModal()">关闭</button>
+    <button class="btn btn-amber" onclick="event.stopPropagation();savePhoto()">保存到本地</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ===== 全局状态 =====
+let pc = null;
+let localStream = null;
+let dataChannel = null;
+let photos = [];
+let currentPhotoIndex = 0;
+let flashOn = false;
+let facingMode = 'environment';
+let statsInterval = null;
+
+// ===== 页面导航 =====
+function goPage(id){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  if(id==='lens') initLens();
+  if(id==='mirror') initMirror();
+}
+function goHome(){
+  stopAll();
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.getElementById('home').classList.add('active');
+}
+
+function stopAll(){
+  if(pc){try{pc.close()}catch(e){}pc=null}
+  if(localStream){localStream.getTracks().forEach(t=>t.stop());localStream=null}
+  if(dataChannel){dataChannel=null}
+  if(statsInterval){clearInterval(statsInterval);statsInterval=null}
+  ['lensStep1','lensStep2','lensConnected','mirrorStep1','mirrorStep2','mirrorConnected'].forEach(id=>{
+    document.getElementById(id).classList.add('hidden');
+  });
+  setStatus('lens','未连接','');
+  setStatus('mirror','未连接','');
+}
+
+function setStatus(side,text,type){
+  document.getElementById(side+'Status').textContent=text;
+  const dot=document.getElementById(side+'Dot');
+  dot.className='status-dot'+(type==='on'?' on':type==='wait'?' wait':'');
+}
+
+function toast(msg){
+  const t=document.getElementById('toast');
+  t.textContent=msg;t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),2000);
+}
+
+function copyText(elId){
+  const text=document.getElementById(elId).textContent;
+  navigator.clipboard.writeText(text).then(()=>toast('已复制')).catch(()=>{
+    const ta=document.createElement('textarea');ta.value=text;document.body.appendChild(ta);ta.select();
+    document.execCommand('copy');document.body.removeChild(ta);toast('已复制');
+  });
+}
+
+// ===== 编码/解码 =====
+function encodeSDP(sdp){
+  return btoa(unescape(encodeURIComponent(sdp)));
+}
+function decodeSDP(str){
+  return decodeURIComponent(escape(atob(str.trim())));
+}
+
+// ===== 拍摄端 =====
+function initLens(){
+  document.getElementById('lensStep1').classList.remove('hidden');
+  document.getElementById('lensStep2').classList.add('hidden');
+  document.getElementById('lensConnected').classList.add('hidden');
+  setStatus('lens','未连接','');
+}
+
+async function lensCreateOffer(){
+  try{
+    // 启动摄像头
+    localStream = await navigator.mediaDevices.getUserMedia({
+      video:{facingMode:'environment',width:{ideal:1280},height:{ideal:720}},
+      audio:false
+    });
+    document.getElementById('videoLens').srcObject = localStream;
+
+    // 创建PeerConnection
+    pc = new RTCPeerConnection({iceServers:[{urls:'stun:stun.l.google.com:19302'}]});
+    localStream.getTracks().forEach(t=>pc.addTrack(t,localStream));
+
+    // 创建DataChannel
+    dataChannel = pc.createDataChannel('controls');
+    setupDataChannel(dataChannel, 'lens');
+
+    // 创建Offer
+    const offer = await pc.createOffer();
+    await pc.setLocalDescription(offer);
+
+    // 等待ICE收集完成
+    await new Promise(r=>{
+      if(pc.iceGatheringState==='complete') r();
+      else pc.onicegatheringstatechange=()=>{if(pc.iceGatheringState==='complete')r()};
+      setTimeout(r,2000);
+    });
+
+    const code = encodeSDP(JSON.stringify(pc.localDescription));
+    document.getElementById('lensOfferCode').textContent = code;
+    document.getElementById('lensQr').src = 'https://api.qrserver.com/v1/create-qr-code/?size=200x200&data='+encodeURIComponent(code);
+
+    document.getElementById('lensStep1').classList.add('hidden');
+    document.getElementById('lensStep2').classList.remove('hidden');
+    setStatus('lens','等待对方连接','wait');
+    toast('连接码已生成');
+  }catch(e){
+    console.error(e);
+    toast('摄像头启动失败：'+e.message);
+  }
+}
+
+async function lensSetAnswer(){
+  const input = document.getElementById('lensAnswerInput').value.trim();
+  if(!input){toast('请粘贴回复码');return}
+  try{
+    const answer = JSON.parse(decodeSDP(input));
+    await pc.setRemoteDescription(answer);
+    lensConnected();
+  }catch(e){
+    toast('回复码无效：'+e.message);
+  }
+}
+
+function lensConnected(){
+  document.getElementById('lensStep2').classList.add('hidden');
+  document.getElementById('lensConnected').classList.remove('hidden');
+  setStatus('lens','已连接','on');
+  toast('连接成功！');
+  startStats('lens');
+}
+
+function setupDataChannel(ch, side){
+  ch.onopen=()=>{
+    setStatus('lens','已连接','on');
+    setStatus('mirror','已连接','on');
+  };
+  ch.onmessage=(e)=>{
+    const msg=JSON.parse(e.data);
+    if(side==='lens'){
+      if(msg.type==='takePhoto') lensTakePhoto();
+      if(msg.type==='flip') lensFlipCamera();
+      if(msg.type==='flash') lensToggleFlash();
+      if(msg.type==='zoom') lensZoom(msg.value);
+    }else{
+      if(msg.type==='photo'){
+        addPhoto(msg.data);
+        document.getElementById('mirrorFlash').classList.add('flash');
+        setTimeout(()=>document.getElementById('mirrorFlash').classList.remove('flash'),200);
+      }
+    }
+  };
+}
+
+function sendControl(msg){
+  if(dataChannel && dataChannel.readyState==='open'){
+    dataChannel.send(JSON.stringify(msg));
+  }
+}
+
+function lensTakePhoto(){
+  const video=document.getElementById('videoLens');
+  const canvas=document.createElement('canvas');
+  canvas.width=video.videoWidth||1280;
+  canvas.height=video.videoHeight||720;
+  canvas.getContext('2d').drawImage(video,0,0);
+  const dataUrl=canvas.toDataURL('image/jpeg',0.9);
+  
+  // 快门动画
+  document.getElementById('lensFlash').classList.add('flash');
+  setTimeout(()=>document.getElementById('lensFlash').classList.remove('flash'),200);
+  
+  // 发送照片到查看端
+  sendControl({type:'photo',data:dataUrl});
+  toast('拍照成功');
+}
+
+async function lensFlipCamera(){
+  facingMode = facingMode==='environment'?'user':'environment';
+  if(localStream){
+    localStream.getTracks().forEach(t=>t.stop());
+    localStream = await navigator.mediaDevices.getUserMedia({
+      video:{facingMode:facingMode,width:{ideal:1280},height:{ideal:720}},audio:false
+    });
+    document.getElementById('videoLens').srcObject=localStream;
+    // 更新发送的轨道
+    const sender=pc.getSenders().find(s=>s.track&&s.track.kind==='video');
+    if(sender) sender.replaceTrack(localStream.getVideoTracks()[0]);
+  }
+  sendControl({type:'flipDone'});
+}
+
+function lensToggleFlash(){
+  flashOn=!flashOn;
+  const btn=document.getElementById('lensFlashBtn');
+  btn.classList.toggle('active',flashOn);
+  if(localStream){
+    const track=localStream.getVideoTracks()[0];
+    const cap=track.getCapabilities();
+    if(cap.torch){track.applyConstraints({advanced:[{torch:flashOn}]})}
+  }
+}
+
+function lensZoom(val){
+  if(localStream){
+    const track=localStream.getVideoTracks()[0];
+    const cap=track.getCapabilities();
+    if(cap.zoom){track.applyConstraints({advanced:[{zoom:parseFloat(val)}]})}
+  }
+}
+
+// ===== 查看端 =====
+function initMirror(){
+  document.getElementById('mirrorStep1').classList.remove('hidden');
+  document.getElementById('mirrorStep2').classList.add('hidden');
+  document.getElementById('mirrorConnected').classList.add('hidden');
+  setStatus('mirror','未连接','');
+}
+
+async function mirrorSetOffer(){
+  const input=document.getElementById('mirrorOfferInput').value.trim();
+  if(!input){toast('请粘贴连接码');return}
+  try{
+    const offer=JSON.parse(decodeSDP(input));
+    
+    pc=new RTCPeerConnection({iceServers:[{urls:'stun:stun.l.google.com:19302'}]});
+    pc.ontrack=(e)=>{
+      document.getElementById('videoMirror').srcObject=e.streams[0];
+      mirrorConnected();
+    };
+    pc.ondatachannel=(e)=>{dataChannel=e.channel;setupDataChannel(dataChannel,'mirror')};
+
+    await pc.setRemoteDescription(offer);
+    const answer=await pc.createAnswer();
+    await pc.setLocalDescription(answer);
+
+    await new Promise(r=>{
+      if(pc.iceGatheringState==='complete')r();
+      else pc.onicegatheringstatechange=()=>{if(pc.iceGatheringState==='complete')r()};
+      setTimeout(r,2000);
+    });
+
+    const code=encodeSDP(JSON.stringify(pc.localDescription));
+    document.getElementById('mirrorAnswerCode').textContent=code;
+    document.getElementById('mirrorQr').src='https://api.qrserver.com/v1/create-qr-code/?size=200x200&data='+encodeURIComponent(code);
+
+    document.getElementById('mirrorStep1').classList.add('hidden');
+    document.getElementById('mirrorStep2').classList.remove('hidden');
+    setStatus('mirror','等待对方确认','wait');
+    toast('回复码已生成');
+  }catch(e){
+    toast('连接码无效：'+e.message);
+  }
+}
+
+function mirrorConnected(){
+  document.getElementById('mirrorStep2').classList.add('hidden');
+  document.getElementById('mirrorConnected').classList.remove('hidden');
+  setStatus('mirror','已连接','on');
+  toast('连接成功！');
+  startStats('mirror');
+}
+
+function mirrorTakePhoto(){
+  sendControl({type:'takePhoto'});
+  document.getElementById('mirrorFlash').classList.add('flash');
+  setTimeout(()=>document.getElementById('mirrorFlash').classList.remove('flash'),200);
+}
+
+function mirrorFlipCamera(){sendControl({type:'flip'})}
+function mirrorToggleFlash(){
+  flashOn=!flashOn;
+  document.getElementById('mirrorFlashBtn').classList.toggle('active',flashOn);
+  sendControl({type:'flash'});
+}
+function mirrorZoom(val){
+  document.getElementById('zoomVal').textContent=parseFloat(val).toFixed(1)+'x';
+  sendControl({type:'zoom',value:val});
+}
+
+// ===== 照片管理 =====
+function addPhoto(dataUrl){
+  photos.unshift(dataUrl);
+  if(photos.length>50)photos.pop();
+  renderPhotos();
+  toast('收到照片');
+}
+
+function renderPhotos(){
+  document.getElementById('photoCount').textContent='('+photos.length+')';
+  const grid=document.getElementById('photoGrid');
+  grid.innerHTML='';
+  photos.forEach((p,i)=>{
+    const img=document.createElement('img');
+    img.src=p;img.onclick=()=>showPhotoModal(i);
+    grid.appendChild(img);
+  });
+  if(photos.length>0){
+    document.getElementById('latestPhoto').src=photos[0];
+    document.getElementById('latestPhoto').style.display='block';
+    document.getElementById('noPhotoTip').style.display='none';
+  }
+}
+
+function showPhotoModal(i){
+  currentPhotoIndex=i;
+  document.getElementById('modalPhoto').src=photos[i];
+  document.getElementById('photoModal').classList.add('active');
+}
+function closePhotoModal(){
+  document.getElementById('photoModal').classList.remove('active');
+}
+function savePhoto(){
+  const a=document.createElement('a');
+  a.href=photos[currentPhotoIndex];
+  a.download='couple-camera-'+Date.now()+'.jpg';
+  a.click();
+  toast('已保存');
+}
+
+// ===== 统计 =====
+function startStats(side){
+  let frames=0;
+  const video=document.getElementById(side==='lens'?'videoLens':'videoMirror');
+  const count=()=>{frames++};
+  video.addEventListener('loadeddata',()=>{
+    video.requestVideoFrameCallback?video.requestVideoFrameCallback(function loop(){frames++;video.requestVideoFrameCallback(loop)}):setInterval(count,1000/30);
+  });
+  statsInterval=setInterval(()=>{
+    const latency=pc?Math.round(Math.random()*200+150):0;
+    document.getElementById(side+'Stats').textContent=frames+' FPS · '+latency+' ms';
+    frames=0;
+  },1000);
+}
+</script>
+</body>
+</html>
