@@ -1,0 +1,27 @@
+{
+  "name": "情侣相机",
+  "short_name": "情侣相机",
+  "description": "两台手机，一台相机。实时预览、远程拍照，P2P直连不经服务器。",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0a0a0f",
+  "theme_color": "#0a0a0f",
+  "lang": "zh-CN",
+  "scope": "./",
+  "icons": [
+    {
+      "src": "icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["photography", "utilities", "lifestyle"]
+}
