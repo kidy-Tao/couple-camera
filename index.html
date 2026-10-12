@@ -631,19 +631,34 @@ function createLensPeer(){
 }
 function setupLensPeerHandlers(){
   peer.on('call',(call)=>{
-    debugLog('收到查看端呼叫，正在应答...','lens');
-    console.log('收到查看端呼叫');
+    debugLog('收到查看端呼叫，呼叫类型：'+(call.type||'unknown')+'，媒体流是否存在：'+(!!localStream),'lens');
+    console.log('收到查看端呼叫',call);
     const maxViewers=isPremium()?5:1;
     if(viewerCount>=maxViewers){
+      debugLog('已达人数上限('+maxViewers+'人)，拒绝呼叫','lens');
       call.close();toast('免费版最多'+maxViewers+'人查看，升级高级版解锁5人');return;
     }
-    calls.push(call);call.answer(localStream);
-    limitTransmissionQuality(call);
-    call.on('stream',()=>debugLog('视频流已发送给查看端','lens'));
-    call.on('close',()=>{viewerCount=Math.max(0,viewerCount-1);updateViewerCount();debugLog('查看端断开，当前'+viewerCount+'人在看','lens')});
-    viewerCount++;updateViewerCount();lensConnected();
-    debugLog('连接成功，当前'+viewerCount+'人在看','lens');
-    if(!getPairInfo()){savePairInfo(currentRoomCode,'lens');toast('已自动配对，下次打开自动连接')}
+    if(!localStream){
+      debugLog('错误：本地媒体流为空，无法应答','lens');
+      call.close();toast('摄像头未启动，请重新创建房间');return;
+    }
+    try{
+      debugLog('正在应答呼叫，发送本地视频流...','lens');
+      calls.push(call);
+      call.answer(localStream);
+      debugLog('呼叫已应答，等待ICE连接建立...','lens');
+      limitTransmissionQuality(call);
+      call.on('stream',(remoteStream)=>{debugLog('收到查看端媒体流（正常）','lens')});
+      call.on('iceStateChanged',(state)=>{debugLog('ICE连接状态：'+state,'lens')});
+      call.on('close',()=>{viewerCount=Math.max(0,viewerCount-1);updateViewerCount();debugLog('查看端断开，当前'+viewerCount+'人在看','lens')});
+      call.on('error',(err)=>{debugLog('呼叫错误：'+err.type+' - '+(err.message||''),'lens')});
+      viewerCount++;updateViewerCount();lensConnected();
+      debugLog('连接成功，当前'+viewerCount+'人在看','lens');
+      if(!getPairInfo()){savePairInfo(currentRoomCode,'lens');toast('已自动配对，下次打开自动连接')}
+    }catch(e){
+      debugLog('应答呼叫异常：'+e.message,'lens');
+      toast('应答失败：'+e.message);
+    }
   });
   peer.on('connection',(conn)=>{
     dataChannels.push(conn);
@@ -730,7 +745,7 @@ async function doMirrorConnect(roomCode){
       conn.on('error',(err)=>{debugLog('数据通道错误：'+err.type);console.error('数据通道错误:',err)});
       conn.on('close',()=>debugLog('数据通道已关闭'));
       const call=peer.call(PEER_PREFIX+roomCode,null);calls=[call];
-      debugLog('视频呼叫已发起，等待应答...');
+      debugLog('视频呼叫已发起，等待拍摄端应答...');
       call.on('stream',(remoteStream)=>{
         clearConnectTimeout();
         debugLog('收到视频流，连接成功！');
@@ -748,6 +763,15 @@ async function doMirrorConnect(roomCode){
         toast('视频连接失败：'+(err.type||err.message));
         goHome();
       });
+      // 监听PeerJS内部的negotiation事件
+      if(call.peerConnection){
+        call.peerConnection.addEventListener('iceconnectionstatechange',()=>{
+          debugLog('PC ICE状态：'+call.peerConnection.iceConnectionState);
+        });
+        call.peerConnection.addEventListener('signalingstatechange',()=>{
+          debugLog('PC信令状态：'+call.peerConnection.signalingState);
+        });
+      }
     });
     peer.on('error',(err)=>{
       clearConnectTimeout();
