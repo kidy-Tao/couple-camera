@@ -3,640 +3,789 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>情侣相机</title>
+<title>合拍 CoShot</title>
 <link rel="manifest" href="manifest.json">
 <link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
-<link rel="icon" type="image/png" sizes="16x16" href="favicon-16.png">
 <link rel="apple-touch-icon" href="icon-180.png">
-<meta name="theme-color" content="#0a0a0f">
+<meta name="theme-color" content="#1a1a2e">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="情侣相机">
+<meta name="apple-mobile-web-app-title" content="合拍 CoShot">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="description" content="两台手机，一台相机。实时预览、远程拍照，P2P直连不经服务器。">
+<meta name="description" content="两台手机，一台相机。实时预览、远程拍照，多人同时看画面。">
+<script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
 <style>
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 :root{
-  --bg:#0a0a0f;--bg2:#14141c;--card:#1c1c26;--border:#2a2a38;
-  --txt:#f0f0f5;--txt2:#9999aa;--txt3:#666677;
-  --amber:#F59E0B;--amber2:#FBBF24;--green:#34D399;--red:#F87171;
-  --radius:16px;
+  --bg:#12122b;--bg2:#1c1c3a;--card:#252545;--card2:#2e2e52;--border:#3a3a5e;
+  --txt:#f5f5fa;--txt2:#a0a0c0;--txt3:#6a6a8a;
+  --orange:#FF7A45;--orange2:#FF9F6B;--orange-glow:rgba(255,122,69,.3);
+  --teal:#36CFC9;--teal2:#5EEAD4;--green:#52C41A;--red:#FF6B6B;
+  --radius:20px;
 }
 html,body{height:100%;background:var(--bg);color:var(--txt);font-family:-apple-system,BlinkMacSystemFont,'PingFang SC','Helvetica Neue',sans-serif;overflow-x:hidden}
-body{display:flex;flex-direction:column;min-height:100vh}
-.page{display:none;flex:1;flex-direction:column;width:100%;max-width:500px;margin:0 auto;padding:20px}
+body{display:flex;flex-direction:column;min-height:100vh;background:radial-gradient(ellipse at top,#1e1e40 0%,#12122b 60%)}
+.page{display:none;flex:1;flex-direction:column;width:100%;max-width:520px;margin:0 auto;padding:20px}
 .page.active{display:flex}
 .hidden{display:none!important}
 
-/* ===== 首页 ===== */
-#home{align-items:center;justify-content:center;text-align:center;padding-top:60px}
-.logo{font-size:64px;margin-bottom:16px}
-.brand{font-size:36px;font-weight:800;letter-spacing:2px;margin-bottom:8px}
-.brand b{color:var(--amber)}
-.tagline{font-size:16px;color:var(--txt2);margin-bottom:48px;line-height:1.6}
-.role-card{width:100%;background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:24px;margin-bottom:16px;display:flex;align-items:center;gap:16px;cursor:pointer;transition:all .2s}
-.role-card:active{transform:scale(.98);border-color:var(--amber)}
-.role-icon{font-size:40px;width:64px;height:64px;background:var(--bg2);border-radius:14px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
-.role-info{flex:1;text-align:left}
-.role-title{font-size:20px;font-weight:700;margin-bottom:4px}
-.role-desc{font-size:13px;color:var(--txt2)}
-.role-arrow{font-size:28px;color:var(--txt3)}
-.home-tips{margin-top:32px;font-size:12px;color:var(--txt3);line-height:1.8;text-align:left;width:100%;background:var(--bg2);border-radius:12px;padding:16px}
-.home-tips b{color:var(--amber)}
+#perm{align-items:center;justify-content:center;text-align:center;padding-top:30px}
+.perm-hero{font-size:80px;margin-bottom:16px;filter:drop-shadow(0 4px 20px var(--orange-glow))}
+.perm-title{font-size:30px;font-weight:800;margin-bottom:8px;background:linear-gradient(135deg,var(--orange),var(--teal));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.perm-sub{font-size:14px;color:var(--txt2);margin-bottom:28px;line-height:1.7}
+.perm-list{width:100%;text-align:left;margin-bottom:28px}
+.perm-item{display:flex;align-items:center;gap:14px;padding:14px 16px;background:var(--card);border:1px solid var(--border);border-radius:14px;margin-bottom:10px}
+.perm-item .p-icon{font-size:22px;width:42px;height:42px;background:var(--bg2);border-radius:12px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.perm-item .p-info{flex:1}
+.perm-item .p-name{font-size:14px;font-weight:600;margin-bottom:2px}
+.perm-item .p-desc{font-size:11px;color:var(--txt2)}
 
-/* ===== 通用 ===== */
-.topbar{display:flex;align-items:center;justify-content:space-between;padding:12px 0;margin-bottom:16px}
-.back-btn{background:none;border:none;color:var(--txt2);font-size:24px;cursor:pointer;padding:4px 8px}
+#home{align-items:center;padding-top:30px}
+.home-hero{text-align:center;margin-bottom:20px}
+.home-logo{font-size:64px;margin-bottom:12px;filter:drop-shadow(0 4px 16px var(--orange-glow))}
+.home-brand{font-size:32px;font-weight:800;letter-spacing:1px;margin-bottom:6px}
+.home-brand b{background:linear-gradient(135deg,var(--orange),var(--orange2));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.home-tagline{font-size:14px;color:var(--txt2);line-height:1.6}
+
+.pair-status{width:100%;background:linear-gradient(135deg,rgba(54,207,201,.12),rgba(255,122,69,.06));border:1px solid var(--teal);border-radius:14px;padding:12px 16px;margin-bottom:14px;display:flex;align-items:center;gap:10px;cursor:pointer;transition:all .2s}
+.pair-status:active{transform:scale(.98)}
+.pair-status .icon{font-size:20px}
+.pair-status .info{flex:1;text-align:left}
+.pair-status .title{font-size:13px;font-weight:700;color:var(--teal)}
+.pair-status .desc{font-size:11px;color:var(--txt2);margin-top:2px}
+.pair-status .arrow{font-size:16px;color:var(--teal)}
+
+.premium-entry{width:100%;background:linear-gradient(135deg,rgba(255,122,69,.15),rgba(54,207,201,.08));border:1px solid var(--orange);border-radius:16px;padding:14px 18px;margin-bottom:16px;display:flex;align-items:center;gap:12px;cursor:pointer;transition:all .2s}
+.premium-entry:active{transform:scale(.98)}
+.premium-entry .icon{font-size:24px}
+.premium-entry .info{flex:1;text-align:left}
+.premium-entry .title{font-size:14px;font-weight:700;color:var(--orange)}
+.premium-entry .desc{font-size:11px;color:var(--txt2);margin-top:2px}
+.premium-entry .arrow{font-size:18px;color:var(--orange)}
+.premium-badge{display:inline-block;background:linear-gradient(135deg,var(--orange),var(--orange2));color:#fff;font-size:9px;font-weight:800;padding:2px 7px;border-radius:8px;margin-left:5px}
+
+.create-room-btn{width:100%;background:linear-gradient(135deg,var(--orange),var(--orange2));color:#fff;border:none;border-radius:var(--radius);padding:22px;font-size:18px;font-weight:800;cursor:pointer;transition:all .2s;box-shadow:0 8px 24px var(--orange-glow);display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:8px}
+.create-room-btn:active{transform:scale(.97);box-shadow:0 4px 12px var(--orange-glow)}
+.create-room-btn .icon{font-size:26px}
+
+.divider{display:flex;align-items:center;gap:12px;margin:18px 0;width:100%}
+.divider .line{flex:1;height:1px;background:var(--border)}
+.divider .text{font-size:12px;color:var(--txt3);white-space:nowrap}
+
+.join-section{width:100%}
+.join-label{font-size:13px;color:var(--txt2);margin-bottom:10px;font-weight:600}
+.room-input-wrap{display:flex;gap:8px;margin-bottom:12px}
+.room-input{flex:1;min-width:0;background:var(--card);border:2px solid var(--border);border-radius:14px;padding:16px 8px;font-size:22px;font-weight:800;color:var(--teal);text-align:center;letter-spacing:4px;outline:none;font-family:monospace;transition:border-color .2s}
+.room-input:focus{border-color:var(--teal)}
+.join-btn{flex-shrink:0;background:linear-gradient(135deg,var(--teal),var(--teal2));color:#0a0a0f;border:none;border-radius:14px;padding:0 20px;font-size:15px;font-weight:800;cursor:pointer;transition:all .2s;white-space:nowrap;min-width:72px}
+.join-btn:active{transform:scale(.96)}
+.join-btn:disabled{opacity:.4;cursor:not-allowed}
+
+.home-tips{margin-top:16px;font-size:11px;color:var(--txt3);line-height:1.8;text-align:left;width:100%;background:var(--bg2);border-radius:12px;padding:14px}
+.home-tips b{color:var(--teal)}
+
+.topbar{display:flex;align-items:center;justify-content:space-between;padding:8px 0 16px}
+.back-btn{background:var(--card);border:none;color:var(--txt2);font-size:22px;cursor:pointer;padding:8px 12px;border-radius:12px;width:40px;height:40px;display:flex;align-items:center;justify-content:center}
 .page-title{font-size:18px;font-weight:700}
-.status-pill{display:inline-flex;align-items:center;gap:6px;font-size:12px;padding:4px 12px;border-radius:20px;background:var(--bg2)}
-.status-dot{width:8px;height:8px;border-radius:50%;background:var(--txt3)}
-.status-dot.on{background:var(--green);box-shadow:0 0 8px var(--green)}
-.status-dot.wait{background:var(--amber);animation:pulse 1.5s infinite}
-@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+.status-pill{display:inline-flex;align-items:center;gap:6px;font-size:11px;padding:5px 12px;border-radius:16px;background:var(--card)}
+.status-dot{width:7px;height:7px;border-radius:50%;background:var(--txt3)}
+.status-dot.on{background:var(--green)}
+.status-dot.wait{background:var(--orange)}
 
-.card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:20px;margin-bottom:16px;width:100%}
-.card-title{font-size:14px;color:var(--txt2);margin-bottom:12px;font-weight:600}
-.btn{width:100%;padding:16px;border:none;border-radius:12px;font-size:16px;font-weight:700;cursor:pointer;transition:all .2s}
-.btn:active{transform:scale(.98)}
-.btn-amber{background:linear-gradient(135deg,var(--amber),var(--amber2));color:#000}
-.btn-ghost{background:var(--bg2);color:var(--txt);border:1px solid var(--border)}
-.btn-sm{padding:10px 16px;font-size:14px;width:auto}
+.btn{border:none;border-radius:14px;padding:14px 24px;font-size:15px;font-weight:700;cursor:pointer;transition:all .2s;width:100%}
+.btn:active{transform:scale(.97)}
+.btn-orange{background:linear-gradient(135deg,var(--orange),var(--orange2));color:#fff;box-shadow:0 4px 16px var(--orange-glow)}
+.btn-teal{background:linear-gradient(135deg,var(--teal),var(--teal2));color:#0a0a0f}
+.btn-ghost{background:var(--card);color:var(--txt);border:1px solid var(--border)}
+.btn-danger{background:rgba(255,107,107,.15);color:var(--red);border:1px solid var(--red)}
+.btn-sm{padding:10px 16px;font-size:13px}
 .btn:disabled{opacity:.4;cursor:not-allowed}
 
-.code-box{width:100%;background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:12px;font-size:12px;color:var(--amber);font-family:monospace;word-break:break-all;max-height:120px;overflow-y:auto;line-height:1.5}
-.textarea{width:100%;background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:12px;font-size:12px;color:var(--txt);font-family:monospace;min-height:100px;resize:vertical;outline:none}
-.textarea:focus{border-color:var(--amber)}
-.qr-wrap{text-align:center;padding:16px 0}
-.qr-wrap img{width:200px;height:200px;border-radius:12px;background:#fff}
-.step-num{display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;border-radius:50%;background:var(--amber);color:#000;font-size:12px;font-weight:800;margin-right:8px}
+.card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:20px;margin-bottom:14px}
+.card-title{font-size:15px;font-weight:700;margin-bottom:12px;display:flex;align-items:center;gap:8px}
+.step-num{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;background:linear-gradient(135deg,var(--orange),var(--orange2));color:#fff;border-radius:50%;font-size:12px;font-weight:800;flex-shrink:0}
 
-/* ===== 拍摄端 ===== */
-.camera-wrap{position:relative;width:100%;aspect-ratio:3/4;background:#000;border-radius:var(--radius);overflow:hidden;margin-bottom:16px}
-#videoLens{width:100%;height:100%;object-fit:cover}
-.camera-overlay{position:absolute;top:0;left:0;right:0;bottom:0;pointer-events:none;display:flex;flex-direction:column;justify-content:space-between;padding:12px}
-.camera-top{display:flex;justify-content:space-between;align-items:flex-start}
-.camera-stats{background:rgba(0,0,0,.6);padding:6px 12px;border-radius:8px;font-size:11px;font-family:monospace;color:var(--green)}
-.camera-bottom{display:flex;justify-content:center;align-items:center;gap:24px}
-.shutter-btn{width:72px;height:72px;border-radius:50%;background:#fff;border:4px solid rgba(255,255,255,.4);cursor:pointer;transition:all .1s}
-.shutter-btn:active{transform:scale(.9);background:var(--amber)}
-.flash-overlay{position:absolute;top:0;left:0;right:0;bottom:0;background:#fff;opacity:0;pointer-events:none;transition:opacity .1s}
-.flash-overlay.flash{opacity:.9}
+.code-box{background:var(--bg);border:2px solid var(--orange);border-radius:14px;padding:18px;font-size:30px;font-weight:800;color:var(--orange);text-align:center;letter-spacing:10px;font-family:monospace;box-shadow:0 0 20px var(--orange-glow)}
+.qr-wrap{display:flex;justify-content:center;margin:16px 0}
+.qr-wrap img{width:170px;height:170px;border-radius:14px;background:#fff;padding:10px;box-shadow:0 4px 16px rgba(0,0,0,.3)}
 
-/* ===== 查看端 ===== */
-.viewer-wrap{position:relative;width:100%;aspect-ratio:3/4;background:#000;border-radius:var(--radius);overflow:hidden;margin-bottom:16px}
-#videoMirror{width:100%;height:100%;object-fit:cover}
-.viewer-controls{display:flex;gap:12px;margin-bottom:16px}
-.ctrl-btn{flex:1;padding:14px;background:var(--card);border:1px solid var(--border);border-radius:12px;color:var(--txt);font-size:13px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:4px}
-.ctrl-btn:active{background:var(--bg2)}
-.ctrl-btn .icon{font-size:22px}
-.ctrl-btn.active{border-color:var(--amber);color:var(--amber)}
-.zoom-slider{width:100%;margin:8px 0 16px}
-.zoom-slider input{width:100%;accent-color:var(--amber)}
-.zoom-label{display:flex;justify-content:space-between;font-size:12px;color:var(--txt2);margin-top:4px}
+.camera-wrap{position:relative;width:100%;aspect-ratio:3/4;background:#000;border-radius:var(--radius);overflow:hidden;margin-bottom:14px;box-shadow:0 8px 32px rgba(0,0,0,.4)}
+.camera-wrap video{width:100%;height:100%;object-fit:cover}
+.camera-overlay{position:absolute;top:0;left:0;right:0;bottom:0;display:flex;flex-direction:column;justify-content:space-between;pointer-events:none}
+.camera-top{padding:14px;display:flex;justify-content:center}
+.camera-stats{background:rgba(0,0,0,.6);color:#fff;font-size:11px;padding:5px 12px;border-radius:14px;font-family:monospace;backdrop-filter:blur(4px)}
+.camera-bottom{padding:24px;display:flex;justify-content:center;pointer-events:auto}
+.shutter-btn{width:68px;height:68px;border-radius:50%;background:#fff;border:4px solid rgba(255,255,255,.35);cursor:pointer;transition:transform .1s;box-shadow:0 4px 16px rgba(0,0,0,.3)}
+.shutter-btn:active{transform:scale(.88)}
+.flash-overlay{position:absolute;top:0;left:0;right:0;bottom:0;background:#fff;opacity:0;pointer-events:none}
+.flash-overlay.flash{animation:flash .2s ease-out}
+@keyframes flash{0%{opacity:.9}100%{opacity:0}}
 
-/* 照片管理 */
-.photo-bar{display:flex;align-items:center;gap:12px;margin-top:8px}
-.photo-thumb{width:48px;height:48px;border-radius:8px;object-fit:cover;background:var(--bg2);cursor:pointer;border:1px solid var(--border)}
-.photo-count{font-size:12px;color:var(--txt2)}
-.photo-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px}
+.viewer-wrap{position:relative;width:100%;aspect-ratio:3/4;background:#000;border-radius:var(--radius);overflow:hidden;margin-bottom:14px;box-shadow:0 8px 32px rgba(0,0,0,.4)}
+.viewer-wrap video{width:100%;height:100%;object-fit:cover}
+.viewer-controls{display:flex;gap:8px;margin-bottom:12px}
+.ctrl-btn{flex:1;background:var(--card);border:1px solid var(--border);border-radius:14px;padding:12px 6px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:4px;transition:all .2s}
+.ctrl-btn:active{transform:scale(.95);border-color:var(--orange)}
+.ctrl-btn .icon{font-size:20px}
+.ctrl-btn span{font-size:10px;color:var(--txt2)}
+.ctrl-btn.active{border-color:var(--orange);background:rgba(255,122,69,.1)}
+.ctrl-btn.active span{color:var(--orange)}
+
+.zoom-slider{width:100%;margin-bottom:12px;padding:0 4px}
+.zoom-slider input{width:100%;accent-color:var(--teal)}
+.zoom-val{text-align:center;font-size:12px;color:var(--txt2);margin-top:4px}
+
+.conn-status{text-align:center;padding:18px;background:var(--bg2);border-radius:14px;margin-bottom:14px}
+.conn-status .icon{font-size:36px;margin-bottom:8px}
+.conn-status .text{font-size:13px;color:var(--txt2);line-height:1.7}
+.conn-status .text b{color:var(--teal)}
+
+.photo-section{margin-top:4px}
+.photo-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.photo-header .title{font-size:14px;font-weight:700}
+.photo-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
 .photo-grid img{width:100%;aspect-ratio:1;object-fit:cover;border-radius:8px;cursor:pointer}
-.photo-modal{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.95);z-index:100;display:none;flex-direction:center;align-items:center;justify-content:center;padding:20px}
-.photo-modal.active{display:flex}
-.photo-modal img{max-width:100%;max-height:80vh;border-radius:12px}
-.photo-modal-actions{position:absolute;bottom:40px;display:flex;gap:16px}
-.photo-modal-actions .btn{width:auto;padding:12px 24px}
+.no-photo{text-align:center;color:var(--txt3);font-size:12px;padding:16px 0}
 
-/* 连接状态 */
-.conn-status{text-align:center;padding:20px}
-.conn-status .icon{font-size:48px;margin-bottom:12px}
-.conn-status .text{font-size:16px;color:var(--txt2);line-height:1.6}
-.conn-status .text b{color:var(--amber)}
+.modal{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.92);z-index:100;display:none;flex-direction:column;align-items:center;justify-content:center;padding:20px}
+.modal.active{display:flex}
+.modal img{max-width:100%;max-height:65vh;border-radius:14px;margin-bottom:20px}
+.modal-actions{display:flex;gap:10px}
+.modal-actions .btn{width:auto;padding:12px 22px}
 
-/* Toast */
-.toast{position:fixed;top:20px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.85);color:#fff;padding:12px 24px;border-radius:24px;font-size:14px;z-index:200;opacity:0;transition:opacity .3s;pointer-events:none}
+.confirm-modal{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.7);z-index:300;display:none;align-items:center;justify-content:center;padding:30px}
+.confirm-modal.active{display:flex}
+.confirm-box{background:var(--card);border:1px solid var(--border);border-radius:20px;padding:24px;width:100%;max-width:360px;text-align:center}
+.confirm-box .c-icon{font-size:48px;margin-bottom:12px}
+.confirm-box .c-title{font-size:18px;font-weight:800;margin-bottom:8px}
+.confirm-box .c-desc{font-size:13px;color:var(--txt2);line-height:1.7;margin-bottom:20px}
+.confirm-box .c-actions{display:flex;gap:10px}
+.confirm-box .c-actions .btn{flex:1}
+
+.pair-code-display{background:var(--bg);border:2px solid var(--teal);border-radius:14px;padding:16px;font-size:28px;font-weight:800;color:var(--teal);text-align:center;letter-spacing:8px;font-family:monospace;margin-bottom:12px}
+.pair-input{width:100%;background:var(--bg);border:2px solid var(--border);border-radius:12px;padding:14px;font-size:20px;font-weight:700;color:var(--orange);text-align:center;letter-spacing:4px;outline:none;font-family:monospace;margin-bottom:12px;transition:border-color .2s}
+.pair-input:focus{border-color:var(--orange)}
+.role-select{display:flex;gap:10px;margin-bottom:16px}
+.role-option{flex:1;background:var(--bg);border:2px solid var(--border);border-radius:12px;padding:14px;cursor:pointer;text-align:center;transition:all .2s}
+.role-option.active{border-color:var(--orange);background:rgba(255,122,69,.1)}
+.role-option .r-icon{font-size:28px;margin-bottom:6px}
+.role-option .r-name{font-size:13px;font-weight:700}
+.role-option .r-desc{font-size:10px;color:var(--txt2);margin-top:2px}
+
+.toast{position:fixed;top:24px;left:50%;transform:translateX(-50%);background:rgba(20,20,40,.95);color:#fff;padding:12px 22px;border-radius:20px;font-size:13px;z-index:200;opacity:0;transition:opacity .3s;pointer-events:none;border:1px solid var(--border);backdrop-filter:blur(8px)}
 .toast.show{opacity:1}
+
+.feature-list{width:100%}
+.feature-item{display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--border)}
+.feature-item:last-child{border-bottom:none}
+.feature-icon{font-size:22px;width:40px;height:40px;background:var(--bg2);border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.feature-info{flex:1}
+.feature-name{font-size:14px;font-weight:600;margin-bottom:2px}
+.feature-desc{font-size:11px;color:var(--txt2)}
+.feature-lock{font-size:16px;color:var(--txt3)}
+.feature-lock.unlocked{color:var(--green)}
+.activate-box{width:100%;background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:14px;margin-top:14px}
+.activate-input{width:100%;background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:12px;font-size:14px;color:var(--orange);font-family:monospace;letter-spacing:2px;text-align:center;outline:none;margin-bottom:10px}
+.activate-input:focus{border-color:var(--orange)}
+.pay-info{margin-top:14px;padding:14px;background:var(--bg2);border-radius:12px;font-size:12px;color:var(--txt2);line-height:1.8}
+.pay-info b{color:var(--orange)}
+.pay-price{font-size:30px;font-weight:800;color:var(--orange);text-align:center;margin:10px 0}
+.pay-price span{font-size:13px;color:var(--txt2);font-weight:400}
 </style>
 </head>
 <body>
 
-<!-- ===== 首页 ===== -->
-<div id="home" class="page active">
-  <div class="logo">📸</div>
-  <div class="brand">情侣<b>相机</b></div>
-  <div class="tagline">两台手机，一台相机<br>他举着拍，你看着画面摆姿势</div>
-  
-  <div class="role-card" onclick="goPage('lens')">
-    <div class="role-icon">📷</div>
-    <div class="role-info">
-      <div class="role-title">我来拍照</div>
-      <div class="role-desc">我是拍摄端，举着手机帮对方拍</div>
-    </div>
-    <div class="role-arrow">›</div>
+<div id="perm" class="page">
+  <div class="perm-hero">📸</div>
+  <div class="perm-title">欢迎使用合拍 CoShot</div>
+  <div class="perm-sub">两台手机，一台相机<br>他举着拍，你看着画面摆姿势<br>支持多人同时看画面</div>
+  <div class="perm-list">
+    <div class="perm-item"><div class="p-icon">📷</div><div class="p-info"><div class="p-name">相机权限</div><div class="p-desc">拍摄端需要调用摄像头采集画面</div></div></div>
+    <div class="perm-item"><div class="p-icon">🎤</div><div class="p-info"><div class="p-name">麦克风权限</div><div class="p-desc">预留权限，当前版本暂不录音</div></div></div>
+    <div class="perm-item"><div class="p-icon">💾</div><div class="p-info"><div class="p-name">存储权限</div><div class="p-desc">保存拍摄的照片到手机相册</div></div></div>
+    <div class="perm-item"><div class="p-icon">🌐</div><div class="p-info"><div class="p-name">网络权限</div><div class="p-desc">P2P连接需要，有网就能连不用同WiFi</div></div></div>
   </div>
-  
-  <div class="role-card" onclick="goPage('mirror')">
-    <div class="role-icon">👀</div>
-    <div class="role-info">
-      <div class="role-title">我来看画面</div>
-      <div class="role-desc">我是被拍的，实时看镜头里的自己</div>
-    </div>
-    <div class="role-arrow">›</div>
+  <button class="btn btn-orange" onclick="goPage('home')">我知道了，开始使用</button>
+  <p style="font-size:10px;color:var(--txt3);margin-top:14px;text-align:center;line-height:1.6">首次使用时系统会弹出权限申请，请全部允许<br>如误拒绝，可在手机设置中重新开启</p>
+</div>
+
+<div id="home" class="page">
+  <div class="home-hero">
+    <div class="home-logo">📸</div>
+    <div class="home-brand">合拍<b>CoShot</b></div>
+    <div class="home-tagline">他举着拍，你看着画面摆姿势<br>多人同时看，有网就能连</div>
   </div>
-  
+  <div class="pair-status hidden" id="pairStatusBar" onclick="goPage('pair')">
+    <div class="icon">🔗</div>
+    <div class="info">
+      <div class="title">已配对：<span id="pairCodeDisplay">------</span></div>
+      <div class="desc">默认角色：<span id="pairRoleDisplay">拍摄端</span> · 点击管理</div>
+    </div>
+    <div class="arrow">›</div>
+  </div>
+  <div class="premium-entry" onclick="goPage('premium')">
+    <div class="icon">👑</div>
+    <div class="info"><div class="title">高级功能 <span class="premium-badge" id="premiumBadge">未解锁</span></div><div class="desc">1080P高清 · 5人同时看 · 远程录像 · 美颜滤镜</div></div>
+    <div class="arrow">›</div>
+  </div>
+  <button class="create-room-btn" onclick="lensCreateRoom()"><span class="icon">📷</span><span>我来拍照 · 创建房间</span></button>
+  <div class="divider"><div class="line"></div><div class="text">或者输入房间号加入</div><div class="line"></div></div>
+  <div class="join-section">
+    <div class="join-label">👀 我来看画面</div>
+    <div class="room-input-wrap">
+      <input type="text" class="room-input" id="homeRoomInput" placeholder="------" maxlength="6" inputmode="numeric" pattern="[0-9]*">
+      <button class="join-btn" id="homeJoinBtn" onclick="mirrorConnectFromHome()" disabled>加入</button>
+    </div>
+  </div>
   <div class="home-tips">
-    <b>使用前准备：</b><br>
-    1. 两台手机连同一个 WiFi 或热点<br>
-    2. 用 Safari 或 Chrome 打开（微信内浏览器可能不支持摄像头）<br>
-    3. 首次使用需允许摄像头权限<br>
-    4. 画面 P2P 直连，不经任何服务器
+    <b>怎么用：</b><br>
+    1. 拍照的人点"创建房间"，会得到6位数字房间号<br>
+    2. 看画面的人输入同一个房间号点"加入"<br>
+    3. 连接成功后自动配对，下次打开自动连接<br>
+    4. 有网就能连，不用同一WiFi，支持多人同时看
   </div>
 </div>
 
-<!-- ===== 拍摄端 ===== -->
+<div id="pair" class="page">
+  <div class="topbar">
+    <button class="back-btn" onclick="goHome()">‹</button>
+    <div class="page-title">🔗 配对管理</div>
+    <div style="width:40px"></div>
+  </div>
+  <div class="card">
+    <div class="card-title"><span class="step-num">1</span>当前配对</div>
+    <div class="pair-code-display" id="currentPairCode">未配对</div>
+    <p style="font-size:11px;color:var(--txt3);text-align:center;margin-bottom:14px">配对后两台手机打开APP自动连接，无需再输入房间号</p>
+    <button class="btn btn-danger btn-sm" onclick="clearPair()" id="clearPairBtn">解除配对</button>
+  </div>
+  <div class="card">
+    <div class="card-title"><span class="step-num">2</span>自定义配对码</div>
+    <p style="font-size:11px;color:var(--txt2);margin-bottom:10px">输入6位数字作为固定配对码，两台手机设置相同即可自动配对</p>
+    <input type="text" class="pair-input" id="customPairInput" placeholder="输入6位数字" maxlength="6" inputmode="numeric">
+    <button class="btn btn-teal" onclick="setCustomPair()">设置配对码</button>
+  </div>
+  <div class="card">
+    <div class="card-title"><span class="step-num">3</span>默认角色</div>
+    <p style="font-size:11px;color:var(--txt2);margin-bottom:12px">自动连接时默认使用的角色，可随时在连接中切换</p>
+    <div class="role-select">
+      <div class="role-option active" id="roleLens" onclick="selectRole('lens')">
+        <div class="r-icon">📷</div>
+        <div class="r-name">拍摄端</div>
+        <div class="r-desc">举着手机拍照</div>
+      </div>
+      <div class="role-option" id="roleMirror" onclick="selectRole('mirror')">
+        <div class="r-icon">👀</div>
+        <div class="r-name">查看端</div>
+        <div class="r-desc">看画面摆姿势</div>
+      </div>
+    </div>
+    <button class="btn btn-orange" onclick="saveDefaultRole()">保存默认角色</button>
+  </div>
+  <div class="conn-status">
+    <div class="icon">💡</div>
+    <div class="text">配对码相同的两台手机<br>同时打开APP会自动检测并提示连接<br>确认后自动进入对应角色</div>
+  </div>
+</div>
+
+<div id="premium" class="page">
+  <div class="topbar">
+    <button class="back-btn" onclick="goHome()">‹</button>
+    <div class="page-title">高级功能</div>
+    <div class="status-pill"><span id="premiumStatus">未解锁</span></div>
+  </div>
+  <div class="card" id="premiumLockedCard">
+    <div style="text-align:center;padding:6px 0">
+      <div style="font-size:44px;margin-bottom:6px">👑</div>
+      <div style="font-size:20px;font-weight:800;margin-bottom:4px">合拍 CoShot <span style="color:var(--orange)">高级版</span></div>
+      <div style="font-size:12px;color:var(--txt2);margin-bottom:12px">解锁全部高级功能，永久使用</div>
+      <div class="pay-price">¥9.9 <span>/ 永久激活</span></div>
+    </div>
+    <div class="feature-list">
+      <div class="feature-item"><div class="feature-icon">📹</div><div class="feature-info"><div class="feature-name">1080P 高清画质</div><div class="feature-desc">免费版 480P 预览+720P 拍照，高级版 1080P 全高清</div></div><div class="feature-lock">🔒</div></div>
+      <div class="feature-item"><div class="feature-icon">👥</div><div class="feature-info"><div class="feature-name">多人同时查看</div><div class="feature-desc">免费版 1 人查看，高级版最多 5 人同时看画面</div></div><div class="feature-lock">🔒</div></div>
+      <div class="feature-item"><div class="feature-icon">🎥</div><div class="feature-info"><div class="feature-name">远程录像</div><div class="feature-desc">查看端远程控制录制视频，自动保存</div></div><div class="feature-lock">🔒</div></div>
+      <div class="feature-item"><div class="feature-icon">✨</div><div class="feature-info"><div class="feature-name">美颜滤镜</div><div class="feature-desc">实时美颜+多款滤镜，拍照直出好看</div></div><div class="feature-lock">🔒</div></div>
+      <div class="feature-item"><div class="feature-icon">⚡</div><div class="feature-info"><div class="feature-name">优先更新</div><div class="feature-desc">新功能优先体验，专属客服支持</div></div><div class="feature-lock">🔒</div></div>
+    </div>
+    <div class="activate-box">
+      <input type="text" class="activate-input" id="activateCode" placeholder="输入激活码" maxlength="19" oninput="formatCode(this)">
+      <button class="btn btn-orange" onclick="activatePremium()">立即激活</button>
+    </div>
+    <div class="pay-info"><b>如何获取激活码？</b><br>1. 转账 ¥9.9 至开发者<br>2. 备注"合拍 CoShot激活"<br>3. 开发者发送 16 位激活码<br>4. 输入上方激活码永久解锁</div>
+  </div>
+  <div class="card hidden" id="premiumUnlockedCard">
+    <div style="text-align:center;padding:14px 0">
+      <div style="font-size:44px;margin-bottom:6px">✅</div>
+      <div style="font-size:18px;font-weight:800;color:var(--green);margin-bottom:6px">高级版已激活</div>
+      <div style="font-size:12px;color:var(--txt2)">全部高级功能已解锁，永久有效</div>
+    </div>
+    <div class="feature-list">
+      <div class="feature-item"><div class="feature-icon">📹</div><div class="feature-info"><div class="feature-name">1080P 高清画质</div><div class="feature-desc">已解锁</div></div><div class="feature-lock unlocked">✓</div></div>
+      <div class="feature-item"><div class="feature-icon">👥</div><div class="feature-info"><div class="feature-name">多人同时查看</div><div class="feature-desc">已解锁</div></div><div class="feature-lock unlocked">✓</div></div>
+      <div class="feature-item"><div class="feature-icon">🎥</div><div class="feature-info"><div class="feature-name">远程录像</div><div class="feature-desc">已解锁</div></div><div class="feature-lock unlocked">✓</div></div>
+      <div class="feature-item"><div class="feature-icon">✨</div><div class="feature-info"><div class="feature-name">美颜滤镜</div><div class="feature-desc">已解锁</div></div><div class="feature-lock unlocked">✓</div></div>
+    </div>
+    <button class="btn btn-ghost" style="margin-top:14px" onclick="resetPremium()">恢复未激活状态（测试用）</button>
+  </div>
+</div>
+
 <div id="lens" class="page">
   <div class="topbar">
     <button class="back-btn" onclick="goHome()">‹</button>
-    <div class="page-title">拍摄端</div>
+    <div class="page-title">📷 拍摄端</div>
     <div class="status-pill"><span class="status-dot" id="lensDot"></span><span id="lensStatus">未连接</span></div>
   </div>
-
-  <!-- 步骤1：生成连接码 -->
-  <div id="lensStep1">
+  <div id="lensWaiting">
     <div class="card">
-      <div class="card-title"><span class="step-num">1</span>生成连接码</div>
-      <p style="font-size:13px;color:var(--txt2);margin-bottom:16px;line-height:1.6">点击下方按钮，生成本机的连接码，然后发给对方</p>
-      <button class="btn btn-amber" onclick="lensCreateOffer()">生成连接码</button>
+      <div class="card-title"><span class="step-num">1</span>房间号</div>
+      <div class="qr-wrap"><img id="lensQr" alt="房间号二维码"></div>
+      <p style="font-size:11px;color:var(--txt3);text-align:center;margin-bottom:10px">对方扫码或输入6位房间号加入</p>
+      <div class="code-box" id="lensRoomCode">------</div>
+      <button class="btn btn-ghost btn-sm" style="width:100%;margin-top:12px" onclick="copyRoomCode()">📋 复制房间号</button>
     </div>
+    <div class="conn-status"><div class="icon">⏳</div><div class="text">等待对方加入...<br>支持多人同时输入房间号查看<br>加入后自动进入拍摄画面</div></div>
   </div>
-
-  <!-- 步骤2：显示连接码 -->
-  <div id="lensStep2" class="hidden">
-    <div class="card">
-      <div class="card-title"><span class="step-num">2</span>把连接码发给对方</div>
-      <div class="qr-wrap">
-        <img id="lensQr" alt="连接码二维码">
-      </div>
-      <p style="font-size:12px;color:var(--txt3);text-align:center;margin-bottom:12px">对方用查看端扫码，或复制下方连接码发送</p>
-      <div class="code-box" id="lensOfferCode"></div>
-      <button class="btn btn-ghost btn-sm" style="width:100%;margin-top:12px" onclick="copyText('lensOfferCode')">复制连接码</button>
-    </div>
-
-    <div class="card">
-      <div class="card-title"><span class="step-num">3</span>粘贴对方的连接码</div>
-      <p style="font-size:13px;color:var(--txt2);margin-bottom:12px">对方生成回复码后，粘贴到下方</p>
-      <textarea class="textarea" id="lensAnswerInput" placeholder="粘贴对方的回复码..."></textarea>
-      <button class="btn btn-amber" style="margin-top:12px" onclick="lensSetAnswer()">确认连接</button>
-    </div>
-  </div>
-
-  <!-- 连接成功：摄像头画面 -->
   <div id="lensConnected" class="hidden">
     <div class="camera-wrap">
       <video id="videoLens" autoplay playsinline muted></video>
       <div class="camera-overlay">
-        <div class="camera-top">
-          <div class="camera-stats" id="lensStats">-- FPS · -- ms</div>
-        </div>
-        <div class="camera-bottom">
-          <button class="shutter-btn" onclick="lensTakePhoto()"></button>
-        </div>
+        <div class="camera-top"><div class="camera-stats" id="lensStats">-- FPS · -- ms</div></div>
+        <div class="camera-bottom"><button class="shutter-btn" onclick="lensTakePhoto()"></button></div>
       </div>
       <div class="flash-overlay" id="lensFlash"></div>
     </div>
     <div class="viewer-controls">
-      <button class="ctrl-btn" onclick="lensFlipCamera()"><span class="icon">🔄</span>切换镜头</button>
-      <button class="ctrl-btn" id="lensFlashBtn" onclick="lensToggleFlash()"><span class="icon">⚡</span>闪光灯</button>
+      <button class="ctrl-btn" onclick="lensFlipCamera()"><span class="icon">🔄</span><span>切换镜头</span></button>
+      <button class="ctrl-btn" id="lensFlashBtn" onclick="lensToggleFlash()"><span class="icon">⚡</span><span>闪光灯</span></button>
+      <button class="ctrl-btn" onclick="confirmSwitchRole()"><span class="icon">🔀</span><span>切换角色</span></button>
     </div>
-    <div class="conn-status">
-      <div class="text">已连接，对方可以实时看到画面并远程拍照</div>
-    </div>
+    <div class="conn-status"><div class="text"><b id="viewerCountDisplay" style="color:var(--teal)">0人在看</b><br>对方可以实时看到画面并远程拍照</div></div>
   </div>
 </div>
 
-<!-- ===== 查看端 ===== -->
 <div id="mirror" class="page">
   <div class="topbar">
     <button class="back-btn" onclick="goHome()">‹</button>
-    <div class="page-title">查看端</div>
+    <div class="page-title">👀 查看端</div>
     <div class="status-pill"><span class="status-dot" id="mirrorDot"></span><span id="mirrorStatus">未连接</span></div>
   </div>
-
-  <!-- 步骤1：输入对方连接码 -->
-  <div id="mirrorStep1">
-    <div class="card">
-      <div class="card-title"><span class="step-num">1</span>粘贴对方的连接码</div>
-      <p style="font-size:13px;color:var(--txt2);margin-bottom:12px;line-height:1.6">拍摄端生成连接码后，粘贴到下方</p>
-      <textarea class="textarea" id="mirrorOfferInput" placeholder="粘贴拍摄端的连接码..."></textarea>
-      <button class="btn btn-amber" style="margin-top:12px" onclick="mirrorSetOffer()">生成回复码</button>
-    </div>
+  <div id="mirrorConnecting" class="hidden">
+    <div class="conn-status" style="padding:50px 20px"><div class="icon">🔄</div><div class="text">正在连接拍摄端...<br>房间号：<b id="connectingRoomCode">------</b></div></div>
   </div>
-
-  <!-- 步骤2：显示回复码 -->
-  <div id="mirrorStep2" class="hidden">
-    <div class="card">
-      <div class="card-title"><span class="step-num">2</span>把回复码发给对方</div>
-      <div class="qr-wrap">
-        <img id="mirrorQr" alt="回复码二维码">
-      </div>
-      <p style="font-size:12px;color:var(--txt3);text-align:center;margin-bottom:12px">对方在拍摄端粘贴此回复码完成连接</p>
-      <div class="code-box" id="mirrorAnswerCode"></div>
-      <button class="btn btn-ghost btn-sm" style="width:100%;margin-top:12px" onclick="copyText('mirrorAnswerCode')">复制回复码</button>
-    </div>
-    <div class="conn-status">
-      <div class="text">等待对方确认连接...<br>对方粘贴回复码后自动连接</div>
-    </div>
-  </div>
-
-  <!-- 连接成功：实时画面 -->
   <div id="mirrorConnected" class="hidden">
     <div class="viewer-wrap">
       <video id="videoMirror" autoplay playsinline></video>
-      <div class="camera-overlay">
-        <div class="camera-top">
-          <div class="camera-stats" id="mirrorStats">-- FPS · -- ms</div>
-        </div>
-      </div>
+      <div class="camera-overlay"><div class="camera-top"><div class="camera-stats" id="mirrorStats">-- FPS · -- ms</div></div></div>
       <div class="flash-overlay" id="mirrorFlash"></div>
     </div>
-
     <div class="zoom-slider">
       <input type="range" id="zoomRange" min="1" max="3" step="0.1" value="1" oninput="mirrorZoom(this.value)">
-      <div class="zoom-label"><span>1x</span><span id="zoomVal">1.0x</span><span>3x</span></div>
+      <div class="zoom-val" id="zoomVal">1.0x 焦距</div>
     </div>
-
     <div class="viewer-controls">
-      <button class="ctrl-btn" onclick="mirrorFlipCamera()"><span class="icon">🔄</span>切换镜头</button>
-      <button class="ctrl-btn" id="mirrorFlashBtn" onclick="mirrorToggleFlash()"><span class="icon">⚡</span>闪光灯</button>
-      <button class="ctrl-btn" onclick="mirrorTakePhoto()"><span class="icon">📸</span>拍照</button>
+      <button class="ctrl-btn" onclick="mirrorTakePhoto()"><span class="icon">📸</span><span>远程拍照</span></button>
+      <button class="ctrl-btn" onclick="mirrorFlipCamera()"><span class="icon">🔄</span><span>切换镜头</span></button>
+      <button class="ctrl-btn" id="mirrorFlashBtn" onclick="mirrorToggleFlash()"><span class="icon">⚡</span><span>闪光灯</span></button>
+      <button class="ctrl-btn" onclick="confirmSwitchRole()"><span class="icon">🔀</span><span>切换角色</span></button>
     </div>
-
-    <button class="btn btn-amber" style="height:64px;font-size:20px;border-radius:50%;width:64px;padding:0;margin:0 auto 16px;display:flex;align-items:center;justify-content:center" onclick="mirrorTakePhoto()">📸</button>
-
-    <div class="card">
-      <div class="card-title">已拍照片 <span class="photo-count" id="photoCount">(0)</span></div>
-      <div class="photo-bar">
-        <img class="photo-thumb" id="latestPhoto" style="display:none" onclick="showPhotoModal(0)">
-        <span style="font-size:12px;color:var(--txt3)" id="noPhotoTip">还没有照片</span>
-      </div>
+    <div class="photo-section">
+      <div class="photo-header"><div class="title">拍摄的照片 <span id="photoCount">(0)</span></div></div>
+      <div id="noPhotoTip" class="no-photo">还没有照片，点击上方"远程拍照"试试</div>
       <div class="photo-grid" id="photoGrid"></div>
     </div>
   </div>
 </div>
 
-<!-- 照片预览弹窗 -->
-<div class="photo-modal" id="photoModal" onclick="closePhotoModal()">
-  <img id="modalPhoto" src="">
-  <div class="photo-modal-actions">
-    <button class="btn btn-ghost" onclick="event.stopPropagation();closePhotoModal()">关闭</button>
-    <button class="btn btn-amber" onclick="event.stopPropagation();savePhoto()">保存到本地</button>
+<div class="modal" id="photoModal">
+  <img id="modalPhoto" src="" alt="照片">
+  <div class="modal-actions">
+    <button class="btn btn-ghost" onclick="closePhotoModal()">关闭</button>
+    <button class="btn btn-orange" onclick="savePhoto()">保存到手机</button>
+  </div>
+</div>
+
+<div class="confirm-modal" id="autoConnectModal">
+  <div class="confirm-box">
+    <div class="c-icon">🔗</div>
+    <div class="c-title">检测到已配对</div>
+    <div class="c-desc">配对码：<b id="autoPairCode" style="color:var(--teal)">------</b><br>你的默认角色：<b id="autoPairRole" style="color:var(--orange)">拍摄端</b><br><br>是否自动连接？另一台手机打开后会自动同步画面</div>
+    <div class="c-actions">
+      <button class="btn btn-ghost" onclick="cancelAutoConnect()">手动操作</button>
+      <button class="btn btn-orange" onclick="doAutoConnect()">自动连接</button>
+    </div>
+  </div>
+</div>
+
+<div class="confirm-modal" id="switchRoleModal">
+  <div class="confirm-box">
+    <div class="c-icon">🔀</div>
+    <div class="c-title">切换角色</div>
+    <div class="c-desc">确定要切换角色吗？<br>切换后你将变为<b id="switchTargetRole" style="color:var(--orange)">查看端</b><br>连接会短暂中断（约1-3秒），然后自动重连</div>
+    <div class="c-actions">
+      <button class="btn btn-ghost" onclick="closeSwitchModal()">取消</button>
+      <button class="btn btn-orange" onclick="doSwitchRole()">确定切换</button>
+    </div>
   </div>
 </div>
 
 <div class="toast" id="toast"></div>
 
 <script>
-// ===== 全局状态 =====
-let pc = null;
-let localStream = null;
-let dataChannel = null;
-let photos = [];
-let currentPhotoIndex = 0;
-let flashOn = false;
-let facingMode = 'environment';
-let statsInterval = null;
+let peer=null,localStream=null,dataChannels=[],calls=[],statsInterval=null;
+let photos=[],currentPhotoIndex=0,facingMode='environment',flashOn=false,currentRoomCode='',viewerCount=0;
+let currentRole=null;
+const PEER_PREFIX='couple-cam-';
+const PAIR_KEY='couple_pair_info';
+const ICE_CONFIG={iceServers:[
+  {urls:'stun:stun.l.google.com:19302'},
+  {urls:'stun:stun1.l.google.com:19302'},
+  {urls:'stun:stun2.l.google.com:19302'},
+  {urls:'turn:openrelay.metered.ca:80',username:'openrelayproject',credential:'openrelayproject'},
+  {urls:'turn:openrelay.metered.ca:443',username:'openrelayproject',credential:'openrelayproject'},
+  {urls:'turn:openrelay.metered.ca:443?transport=tcp',username:'openrelayproject',credential:'openrelayproject'}
+]};
+const PEER_OPTIONS={host:'0.peerjs.com',port:443,path:'/',secure:true,debug:1,config:ICE_CONFIG};
+let connectTimeout=null;
+function clearConnectTimeout(){if(connectTimeout){clearTimeout(connectTimeout);connectTimeout=null}}
+
+// ===== 配对管理 =====
+function getPairInfo(){try{return JSON.parse(localStorage.getItem(PAIR_KEY))||null}catch(e){return null}}
+function savePairInfo(code,role){localStorage.setItem(PAIR_KEY,JSON.stringify({code,role,time:Date.now()}));updatePairStatusBar()}
+function clearPairInfo(){localStorage.removeItem(PAIR_KEY);updatePairStatusBar()}
+function updatePairStatusBar(){
+  const info=getPairInfo();const bar=document.getElementById('pairStatusBar');if(!bar)return;
+  if(info){bar.classList.remove('hidden');document.getElementById('pairCodeDisplay').textContent=info.code;document.getElementById('pairRoleDisplay').textContent=info.role==='lens'?'拍摄端':'查看端'}
+  else{bar.classList.add('hidden')}
+}
+function selectRole(role){document.getElementById('roleLens').classList.toggle('active',role==='lens');document.getElementById('roleMirror').classList.toggle('active',role==='mirror')}
+function saveDefaultRole(){
+  const info=getPairInfo();if(!info){toast('请先设置配对码');return}
+  const role=document.getElementById('roleLens').classList.contains('active')?'lens':'mirror';
+  savePairInfo(info.code,role);toast('默认角色已保存：'+(role==='lens'?'拍摄端':'查看端'));
+}
+function setCustomPair(){
+  const input=document.getElementById('customPairInput');const code=input.value.trim();
+  if(!/^\d{6}$/.test(code)){toast('请输入6位数字');return}
+  const info=getPairInfo();const role=info?info.role:'lens';
+  savePairInfo(code,role);document.getElementById('currentPairCode').textContent=code;toast('配对码已设置：'+code);
+}
+function clearPair(){
+  if(!confirm('确定解除配对吗？解除后需要重新输入房间号连接'))return;
+  clearPairInfo();document.getElementById('currentPairCode').textContent='未配对';document.getElementById('customPairInput').value='';toast('已解除配对');
+}
+
+// ===== 自动连接 =====
+function checkAutoConnect(){
+  const info=getPairInfo();if(!info)return false;
+  document.getElementById('autoPairCode').textContent=info.code;
+  document.getElementById('autoPairRole').textContent=info.role==='lens'?'拍摄端':'查看端';
+  document.getElementById('autoConnectModal').classList.add('active');
+  return true;
+}
+function cancelAutoConnect(){document.getElementById('autoConnectModal').classList.remove('active')}
+function doAutoConnect(){
+  document.getElementById('autoConnectModal').classList.remove('active');
+  const info=getPairInfo();if(!info)return;
+  if(info.role==='lens'){lensCreateRoom(info.code)}
+  else{goPage('mirror');document.getElementById('connectingRoomCode').textContent=info.code;document.getElementById('mirrorConnecting').classList.remove('hidden');setStatus('mirror','连接中','wait');doMirrorConnect(info.code)}
+}
+
+// ===== 角色切换 =====
+function confirmSwitchRole(){
+  const target=currentRole==='lens'?'查看端':'拍摄端';
+  document.getElementById('switchTargetRole').textContent=target;
+  document.getElementById('switchRoleModal').classList.add('active');
+}
+function closeSwitchModal(){document.getElementById('switchRoleModal').classList.remove('active')}
+function doSwitchRole(){
+  document.getElementById('switchRoleModal').classList.remove('active');
+  const info=getPairInfo();
+  if(!info){toast('切换角色，请重新创建/加入房间');goHome();return}
+  const newRole=currentRole==='lens'?'mirror':'lens';
+  savePairInfo(info.code,newRole);
+  stopAll();
+  toast('正在切换为'+(newRole==='lens'?'拍摄端':'查看端')+'...');
+  setTimeout(()=>{
+    if(newRole==='lens'){lensCreateRoom(info.code)}
+    else{goPage('mirror');document.getElementById('connectingRoomCode').textContent=info.code;document.getElementById('mirrorConnecting').classList.remove('hidden');setStatus('mirror','连接中','wait');doMirrorConnect(info.code)}
+  },1000);
+}
 
 // ===== 页面导航 =====
 function goPage(id){
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.getElementById(id).classList.add('active');
-  if(id==='lens') initLens();
-  if(id==='mirror') initMirror();
+  if(id==='lens'){currentRole='lens';initLens()}
+  if(id==='mirror'){currentRole='mirror';initMirror()}
+  if(id==='pair')initPairPage();
 }
-function goHome(){
-  stopAll();
-  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
-  document.getElementById('home').classList.add('active');
+function goHome(){stopAll();currentRole=null;document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));document.getElementById('home').classList.add('active')}
+function initPairPage(){
+  const info=getPairInfo();
+  if(info){document.getElementById('currentPairCode').textContent=info.code;document.getElementById('customPairInput').value=info.code;selectRole(info.role)}
+  else{document.getElementById('currentPairCode').textContent='未配对';selectRole('lens')}
 }
-
 function stopAll(){
-  if(pc){try{pc.close()}catch(e){}pc=null}
+  if(peer){try{peer.destroy()}catch(e){}peer=null}
   if(localStream){localStream.getTracks().forEach(t=>t.stop());localStream=null}
-  if(dataChannel){dataChannel=null}
+  dataChannels.forEach(dc=>{try{dc.close()}catch(e){}});dataChannels=[];
+  calls.forEach(c=>{try{c.close()}catch(e){}});calls=[];
+  viewerCount=0;
   if(statsInterval){clearInterval(statsInterval);statsInterval=null}
-  ['lensStep1','lensStep2','lensConnected','mirrorStep1','mirrorStep2','mirrorConnected'].forEach(id=>{
-    document.getElementById(id).classList.add('hidden');
-  });
-  setStatus('lens','未连接','');
-  setStatus('mirror','未连接','');
+  ['lensWaiting','lensConnected','mirrorConnecting','mirrorConnected'].forEach(id=>{const el=document.getElementById(id);if(el)el.classList.add('hidden')});
+  setStatus('lens','未连接','');setStatus('mirror','未连接','');
 }
-
 function setStatus(side,text,type){
-  document.getElementById(side+'Status').textContent=text;
-  const dot=document.getElementById(side+'Dot');
-  dot.className='status-dot'+(type==='on'?' on':type==='wait'?' wait':'');
+  const el=document.getElementById(side+'Status');if(el)el.textContent=text;
+  const dot=document.getElementById(side+'Dot');if(dot)dot.className='status-dot'+(type==='on'?' on':type==='wait'?' wait':'');
 }
-
-function toast(msg){
-  const t=document.getElementById('toast');
-  t.textContent=msg;t.classList.add('show');
-  setTimeout(()=>t.classList.remove('show'),2000);
-}
-
-function copyText(elId){
-  const text=document.getElementById(elId).textContent;
-  navigator.clipboard.writeText(text).then(()=>toast('已复制')).catch(()=>{
+function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2000)}
+function copyRoomCode(){
+  const text=currentRoomCode;
+  navigator.clipboard.writeText(text).then(()=>toast('房间号已复制')).catch(()=>{
     const ta=document.createElement('textarea');ta.value=text;document.body.appendChild(ta);ta.select();
-    document.execCommand('copy');document.body.removeChild(ta);toast('已复制');
+    document.execCommand('copy');document.body.removeChild(ta);toast('房间号已复制');
   });
 }
-
-// ===== 编码/解码 =====
-function encodeSDP(sdp){
-  return btoa(unescape(encodeURIComponent(sdp)));
-}
-function decodeSDP(str){
-  return decodeURIComponent(escape(atob(str.trim())));
-}
+function generateRoomCode(){return String(Math.floor(100000+Math.random()*900000))}
 
 // ===== 拍摄端 =====
-function initLens(){
-  document.getElementById('lensStep1').classList.remove('hidden');
-  document.getElementById('lensStep2').classList.add('hidden');
-  document.getElementById('lensConnected').classList.add('hidden');
-  setStatus('lens','未连接','');
-}
-
-async function lensCreateOffer(){
+function initLens(){document.getElementById('lensWaiting').classList.remove('hidden');document.getElementById('lensConnected').classList.add('hidden');setStatus('lens','未连接','')}
+async function lensCreateRoom(fixedCode){
   try{
-    // 启动摄像头
-    localStream = await navigator.mediaDevices.getUserMedia({
-      video:{facingMode:'environment',width:{ideal:1280},height:{ideal:720}},
-      audio:false
+    const quality=getVideoQuality();
+    localStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment',width:quality.width,height:quality.height},audio:false});
+    document.getElementById('videoLens').srcObject=localStream;
+    currentRoomCode=fixedCode||generateRoomCode();
+    document.getElementById('lensRoomCode').textContent=currentRoomCode;
+    document.getElementById('lensQr').src='https://api.qrserver.com/v1/create-qr-code/?size=200x200&margin=10&data='+currentRoomCode;
+    peer=new Peer(PEER_PREFIX+currentRoomCode,PEER_OPTIONS);
+    peer.on('open',(id)=>{console.log('拍摄端Peer已创建:',id);goPage('lens');setStatus('lens','等待连接','wait');toast(fixedCode?'已用配对码创建房间：'+currentRoomCode:'房间已创建：'+currentRoomCode)});
+    peer.on('error',(err)=>{
+      console.error('Peer错误:',err);
+      if(err.type==='unavailable-id'){
+        currentRoomCode=generateRoomCode();
+        document.getElementById('lensRoomCode').textContent=currentRoomCode;
+        document.getElementById('lensQr').src='https://api.qrserver.com/v1/create-qr-code/?size=200x200&margin=10&data='+currentRoomCode;
+        peer=new Peer(PEER_PREFIX+currentRoomCode,PEER_OPTIONS);
+        setupLensPeerHandlers();
+      }else if(err.type==='network'||err.type==='socket-error'||err.type==='server-error'){
+        toast('信令服务器连接失败，请检查网络后重试');
+      }else{toast('连接错误：'+err.type)}
     });
-    document.getElementById('videoLens').srcObject = localStream;
-
-    // 创建PeerConnection
-    pc = new RTCPeerConnection({iceServers:[{urls:'stun:stun.l.google.com:19302'}]});
-    localStream.getTracks().forEach(t=>pc.addTrack(t,localStream));
-
-    // 创建DataChannel
-    dataChannel = pc.createDataChannel('controls');
-    setupDataChannel(dataChannel, 'lens');
-
-    // 创建Offer
-    const offer = await pc.createOffer();
-    await pc.setLocalDescription(offer);
-
-    // 等待ICE收集完成
-    await new Promise(r=>{
-      if(pc.iceGatheringState==='complete') r();
-      else pc.onicegatheringstatechange=()=>{if(pc.iceGatheringState==='complete')r()};
-      setTimeout(r,2000);
+    setupLensPeerHandlers();
+  }catch(e){console.error(e);toast('摄像头启动失败：'+e.message+'。请检查摄像头权限')}
+}
+function setupLensPeerHandlers(){
+  peer.on('call',(call)=>{
+    console.log('收到查看端呼叫');
+    const maxViewers=isPremium()?5:1;
+    if(viewerCount>=maxViewers){
+      call.close();toast('免费版最多'+maxViewers+'人查看，升级高级版解锁5人');return;
+    }
+    calls.push(call);call.answer(localStream);
+    limitTransmissionQuality(call);
+    call.on('close',()=>{viewerCount=Math.max(0,viewerCount-1);updateViewerCount()});
+    viewerCount++;updateViewerCount();lensConnected();
+    if(!getPairInfo()){savePairInfo(currentRoomCode,'lens');toast('已自动配对，下次打开自动连接')}
+  });
+  peer.on('connection',(conn)=>{
+    dataChannels.push(conn);
+    conn.on('data',(data)=>{
+      const msg=typeof data==='string'?JSON.parse(data):data;
+      if(msg.type==='takePhoto')lensTakePhoto();
+      if(msg.type==='flip')lensFlipCamera();
+      if(msg.type==='flash')lensToggleFlash();
+      if(msg.type==='zoom')lensZoom(msg.value);
     });
-
-    const code = encodeSDP(JSON.stringify(pc.localDescription));
-    document.getElementById('lensOfferCode').textContent = code;
-    document.getElementById('lensQr').src = 'https://api.qrserver.com/v1/create-qr-code/?size=200x200&data='+encodeURIComponent(code);
-
-    document.getElementById('lensStep1').classList.add('hidden');
-    document.getElementById('lensStep2').classList.remove('hidden');
-    setStatus('lens','等待对方连接','wait');
-    toast('连接码已生成');
-  }catch(e){
-    console.error(e);
-    toast('摄像头启动失败：'+e.message);
-  }
+    conn.on('close',()=>{const idx=dataChannels.indexOf(conn);if(idx>-1)dataChannels.splice(idx,1)});
+  });
 }
-
-async function lensSetAnswer(){
-  const input = document.getElementById('lensAnswerInput').value.trim();
-  if(!input){toast('请粘贴回复码');return}
-  try{
-    const answer = JSON.parse(decodeSDP(input));
-    await pc.setRemoteDescription(answer);
-    lensConnected();
-  }catch(e){
-    toast('回复码无效：'+e.message);
-  }
-}
-
+function updateViewerCount(){const el=document.getElementById('viewerCountDisplay');if(el)el.textContent=viewerCount+'人在看'}
 function lensConnected(){
-  document.getElementById('lensStep2').classList.add('hidden');
+  document.getElementById('lensWaiting').classList.add('hidden');
   document.getElementById('lensConnected').classList.remove('hidden');
-  setStatus('lens','已连接','on');
-  toast('连接成功！');
+  setStatus('lens','已连接','on');updateViewerCount();
+  if(viewerCount===1)toast('连接成功！'+viewerCount+'人在看');
   startStats('lens');
 }
-
-function setupDataChannel(ch, side){
-  ch.onopen=()=>{
-    setStatus('lens','已连接','on');
-    setStatus('mirror','已连接','on');
-  };
-  ch.onmessage=(e)=>{
-    const msg=JSON.parse(e.data);
-    if(side==='lens'){
-      if(msg.type==='takePhoto') lensTakePhoto();
-      if(msg.type==='flip') lensFlipCamera();
-      if(msg.type==='flash') lensToggleFlash();
-      if(msg.type==='zoom') lensZoom(msg.value);
-    }else{
-      if(msg.type==='photo'){
-        addPhoto(msg.data);
-        document.getElementById('mirrorFlash').classList.add('flash');
-        setTimeout(()=>document.getElementById('mirrorFlash').classList.remove('flash'),200);
-      }
-    }
-  };
-}
-
-function sendControl(msg){
-  if(dataChannel && dataChannel.readyState==='open'){
-    dataChannel.send(JSON.stringify(msg));
-  }
-}
-
+function sendControl(msg){const data=JSON.stringify(msg);dataChannels.forEach(dc=>{if(dc.open){try{dc.send(data)}catch(e){}}})}
 function lensTakePhoto(){
   const video=document.getElementById('videoLens');
-  const canvas=document.createElement('canvas');
-  canvas.width=video.videoWidth||1280;
-  canvas.height=video.videoHeight||720;
+  const canvas=document.createElement('canvas');canvas.width=video.videoWidth||1280;canvas.height=video.videoHeight||720;
   canvas.getContext('2d').drawImage(video,0,0);
   const dataUrl=canvas.toDataURL('image/jpeg',0.9);
-  
-  // 快门动画
   document.getElementById('lensFlash').classList.add('flash');
   setTimeout(()=>document.getElementById('lensFlash').classList.remove('flash'),200);
-  
-  // 发送照片到查看端
-  sendControl({type:'photo',data:dataUrl});
-  toast('拍照成功');
+  sendControl({type:'photo',data:dataUrl});toast('拍照成功');
 }
-
 async function lensFlipCamera(){
-  facingMode = facingMode==='environment'?'user':'environment';
+  facingMode=facingMode==='environment'?'user':'environment';
   if(localStream){
     localStream.getTracks().forEach(t=>t.stop());
-    localStream = await navigator.mediaDevices.getUserMedia({
-      video:{facingMode:facingMode,width:{ideal:1280},height:{ideal:720}},audio:false
-    });
+    const quality=getVideoQuality();
+    localStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:facingMode,width:quality.width,height:quality.height},audio:false});
     document.getElementById('videoLens').srcObject=localStream;
-    // 更新发送的轨道
-    const sender=pc.getSenders().find(s=>s.track&&s.track.kind==='video');
-    if(sender) sender.replaceTrack(localStream.getVideoTracks()[0]);
+    calls.forEach(call=>{try{const sender=call.peerConnection.getSenders().find(s=>s.track&&s.track.kind==='video');if(sender)sender.replaceTrack(localStream.getVideoTracks()[0])}catch(e){}});
   }
-  sendControl({type:'flipDone'});
 }
-
 function lensToggleFlash(){
-  flashOn=!flashOn;
-  const btn=document.getElementById('lensFlashBtn');
-  btn.classList.toggle('active',flashOn);
-  if(localStream){
-    const track=localStream.getVideoTracks()[0];
-    const cap=track.getCapabilities();
-    if(cap.torch){track.applyConstraints({advanced:[{torch:flashOn}]})}
-  }
+  flashOn=!flashOn;const btn=document.getElementById('lensFlashBtn');
+  if(btn)btn.classList.toggle('active',flashOn);
+  if(localStream){const track=localStream.getVideoTracks()[0];const cap=track.getCapabilities?track.getCapabilities():{};if(cap.torch)track.applyConstraints({advanced:[{torch:flashOn}]})}
 }
-
-function lensZoom(val){
-  if(localStream){
-    const track=localStream.getVideoTracks()[0];
-    const cap=track.getCapabilities();
-    if(cap.zoom){track.applyConstraints({advanced:[{zoom:parseFloat(val)}]})}
-  }
-}
+function lensZoom(val){if(localStream){const track=localStream.getVideoTracks()[0];const cap=track.getCapabilities?track.getCapabilities():{};if(cap.zoom)track.applyConstraints({advanced:[{zoom:parseFloat(val)}]})}}
 
 // ===== 查看端 =====
-function initMirror(){
-  document.getElementById('mirrorStep1').classList.remove('hidden');
-  document.getElementById('mirrorStep2').classList.add('hidden');
-  document.getElementById('mirrorConnected').classList.add('hidden');
-  setStatus('mirror','未连接','');
+function initMirror(){document.getElementById('mirrorConnecting').classList.add('hidden');document.getElementById('mirrorConnected').classList.add('hidden');setStatus('mirror','未连接','')}
+function mirrorConnectFromHome(){
+  const roomCode=document.getElementById('homeRoomInput').value.trim();
+  if(!roomCode||roomCode.length!==6){toast('请输入6位数字房间号');return}
+  if(!/^\d{6}$/.test(roomCode)){toast('房间号只能是数字');return}
+  goPage('mirror');
+  document.getElementById('connectingRoomCode').textContent=roomCode;
+  document.getElementById('mirrorConnecting').classList.remove('hidden');
+  setStatus('mirror','连接中','wait');
+  doMirrorConnect(roomCode);
 }
-
-async function mirrorSetOffer(){
-  const input=document.getElementById('mirrorOfferInput').value.trim();
-  if(!input){toast('请粘贴连接码');return}
+async function doMirrorConnect(roomCode){
   try{
-    const offer=JSON.parse(decodeSDP(input));
-    
-    pc=new RTCPeerConnection({iceServers:[{urls:'stun:stun.l.google.com:19302'}]});
-    pc.ontrack=(e)=>{
-      document.getElementById('videoMirror').srcObject=e.streams[0];
-      mirrorConnected();
-    };
-    pc.ondatachannel=(e)=>{dataChannel=e.channel;setupDataChannel(dataChannel,'mirror')};
-
-    await pc.setRemoteDescription(offer);
-    const answer=await pc.createAnswer();
-    await pc.setLocalDescription(answer);
-
-    await new Promise(r=>{
-      if(pc.iceGatheringState==='complete')r();
-      else pc.onicegatheringstatechange=()=>{if(pc.iceGatheringState==='complete')r()};
-      setTimeout(r,2000);
+    clearConnectTimeout();
+    connectTimeout=setTimeout(()=>{
+      toast('连接超时（15秒），请确认拍摄端已创建房间且网络正常');
+      goHome();
+    },15000);
+    peer=new Peer(PEER_OPTIONS);
+    peer.on('open',(id)=>{
+      console.log('查看端Peer已创建:',id);
+      const conn=peer.connect(PEER_PREFIX+roomCode,{reliable:true});dataChannels=[conn];
+      conn.on('data',(data)=>{
+        const msg=typeof data==='string'?JSON.parse(data):data;
+        if(msg.type==='photo'){addPhoto(msg.data);document.getElementById('mirrorFlash').classList.add('flash');setTimeout(()=>document.getElementById('mirrorFlash').classList.remove('flash'),200)}
+      });
+      conn.on('error',(err)=>{console.error('数据通道错误:',err)});
+      const call=peer.call(PEER_PREFIX+roomCode,null);calls=[call];
+      call.on('stream',(remoteStream)=>{
+        clearConnectTimeout();
+        console.log('收到视频流');
+        document.getElementById('videoMirror').srcObject=remoteStream;
+        mirrorConnected();
+        if(!getPairInfo()){savePairInfo(roomCode,'mirror');toast('已自动配对，下次打开自动连接')}
+      });
+      call.on('error',(err)=>{clearConnectTimeout();console.error('呼叫错误:',err);toast('连接失败：'+(err.type||err.message));goHome()});
     });
-
-    const code=encodeSDP(JSON.stringify(pc.localDescription));
-    document.getElementById('mirrorAnswerCode').textContent=code;
-    document.getElementById('mirrorQr').src='https://api.qrserver.com/v1/create-qr-code/?size=200x200&data='+encodeURIComponent(code);
-
-    document.getElementById('mirrorStep1').classList.add('hidden');
-    document.getElementById('mirrorStep2').classList.remove('hidden');
-    setStatus('mirror','等待对方确认','wait');
-    toast('回复码已生成');
-  }catch(e){
-    toast('连接码无效：'+e.message);
-  }
+    peer.on('error',(err)=>{
+      clearConnectTimeout();
+      console.error('Peer错误:',err);
+      if(err.type==='peer-unavailable')toast('房间不存在，请检查房间号是否正确');
+      else if(err.type==='network')toast('网络错误，请检查网络连接');
+      else if(err.type==='socket-error'||err.type==='server-error')toast('信令服务器连接失败，请稍后重试');
+      else toast('连接失败：'+err.type);
+      goHome();
+    });
+  }catch(e){clearConnectTimeout();console.error(e);toast('连接失败：'+e.message);goHome()}
 }
-
 function mirrorConnected(){
-  document.getElementById('mirrorStep2').classList.add('hidden');
+  document.getElementById('mirrorConnecting').classList.add('hidden');
   document.getElementById('mirrorConnected').classList.remove('hidden');
-  setStatus('mirror','已连接','on');
-  toast('连接成功！');
-  startStats('mirror');
+  setStatus('mirror','已连接','on');toast('连接成功！');startStats('mirror');
 }
-
-function mirrorTakePhoto(){
-  sendControl({type:'takePhoto'});
-  document.getElementById('mirrorFlash').classList.add('flash');
-  setTimeout(()=>document.getElementById('mirrorFlash').classList.remove('flash'),200);
-}
-
+function mirrorTakePhoto(){sendControl({type:'takePhoto'});document.getElementById('mirrorFlash').classList.add('flash');setTimeout(()=>document.getElementById('mirrorFlash').classList.remove('flash'),200)}
 function mirrorFlipCamera(){sendControl({type:'flip'})}
-function mirrorToggleFlash(){
-  flashOn=!flashOn;
-  document.getElementById('mirrorFlashBtn').classList.toggle('active',flashOn);
-  sendControl({type:'flash'});
-}
-function mirrorZoom(val){
-  document.getElementById('zoomVal').textContent=parseFloat(val).toFixed(1)+'x';
-  sendControl({type:'zoom',value:val});
-}
+function mirrorToggleFlash(){flashOn=!flashOn;const btn=document.getElementById('mirrorFlashBtn');if(btn)btn.classList.toggle('active',flashOn);sendControl({type:'flash'})}
+function mirrorZoom(val){document.getElementById('zoomVal').textContent=parseFloat(val).toFixed(1)+'x 焦距';sendControl({type:'zoom',value:val})}
 
 // ===== 照片管理 =====
 function addPhoto(dataUrl){
   photos.unshift(dataUrl);
-  if(photos.length>50)photos.pop();
-  renderPhotos();
-  toast('收到照片');
+  if(photos.length>200)photos.pop();
+  renderPhotos();toast('收到照片');
 }
-
 function renderPhotos(){
   document.getElementById('photoCount').textContent='('+photos.length+')';
-  const grid=document.getElementById('photoGrid');
-  grid.innerHTML='';
-  photos.forEach((p,i)=>{
-    const img=document.createElement('img');
-    img.src=p;img.onclick=()=>showPhotoModal(i);
-    grid.appendChild(img);
-  });
-  if(photos.length>0){
-    document.getElementById('latestPhoto').src=photos[0];
-    document.getElementById('latestPhoto').style.display='block';
-    document.getElementById('noPhotoTip').style.display='none';
-  }
+  const grid=document.getElementById('photoGrid');grid.innerHTML='';
+  photos.forEach((p,i)=>{const img=document.createElement('img');img.src=p;img.onclick=()=>showPhotoModal(i);grid.appendChild(img)});
+  document.getElementById('noPhotoTip').style.display=photos.length>0?'none':'block';
 }
-
-function showPhotoModal(i){
-  currentPhotoIndex=i;
-  document.getElementById('modalPhoto').src=photos[i];
-  document.getElementById('photoModal').classList.add('active');
-}
-function closePhotoModal(){
-  document.getElementById('photoModal').classList.remove('active');
-}
-function savePhoto(){
-  const a=document.createElement('a');
-  a.href=photos[currentPhotoIndex];
-  a.download='couple-camera-'+Date.now()+'.jpg';
-  a.click();
-  toast('已保存');
-}
+function showPhotoModal(i){currentPhotoIndex=i;document.getElementById('modalPhoto').src=photos[i];document.getElementById('photoModal').classList.add('active')}
+function closePhotoModal(){document.getElementById('photoModal').classList.remove('active')}
+function savePhoto(){const a=document.createElement('a');a.href=photos[currentPhotoIndex];a.download='couple-camera-'+Date.now()+'.jpg';a.click();toast('已保存')}
 
 // ===== 统计 =====
 function startStats(side){
-  let frames=0;
-  const video=document.getElementById(side==='lens'?'videoLens':'videoMirror');
-  const count=()=>{frames++};
-  video.addEventListener('loadeddata',()=>{
-    video.requestVideoFrameCallback?video.requestVideoFrameCallback(function loop(){frames++;video.requestVideoFrameCallback(loop)}):setInterval(count,1000/30);
-  });
-  statsInterval=setInterval(()=>{
-    const latency=pc?Math.round(Math.random()*200+150):0;
-    document.getElementById(side+'Stats').textContent=frames+' FPS · '+latency+' ms';
-    frames=0;
-  },1000);
+  let frames=0;const video=document.getElementById(side==='lens'?'videoLens':'videoMirror');
+  if(video){video.addEventListener('loadeddata',()=>{if(video.requestVideoFrameCallback){video.requestVideoFrameCallback(function loop(){frames++;video.requestVideoFrameCallback(loop)})}else{setInterval(()=>{frames++},1000/30)}})}
+  statsInterval=setInterval(()=>{const latency=peer?Math.round(Math.random()*200+150):0;const statsEl=document.getElementById(side+'Stats');if(statsEl)statsEl.textContent=frames+' FPS · '+latency+' ms';frames=0},1000);
 }
 
-// ===== PWA Service Worker 注册 =====
-if('serviceWorker' in navigator){
-  window.addEventListener('load',()=>{
-    navigator.serviceWorker.register('./service-worker.js').catch(()=>{});
-  });
+// ===== 高级功能 =====
+const PREMIUM_KEY='couple_camera_premium';
+function isPremium(){return localStorage.getItem(PREMIUM_KEY)==='1'}
+function setPremium(val){if(val)localStorage.setItem(PREMIUM_KEY,'1');else localStorage.removeItem(PREMIUM_KEY);updatePremiumUI()}
+function updatePremiumUI(){
+  const premium=isPremium();
+  const badge=document.getElementById('premiumBadge');if(badge){badge.textContent=premium?'已激活':'未解锁';badge.style.background=premium?'linear-gradient(135deg,#52C41A,#73D13D)':''}
+  const status=document.getElementById('premiumStatus');if(status)status.textContent=premium?'已激活':'未解锁';
+  const lockedCard=document.getElementById('premiumLockedCard');if(lockedCard)lockedCard.classList.toggle('hidden',premium);
+  const unlockedCard=document.getElementById('premiumUnlockedCard');if(unlockedCard)unlockedCard.classList.toggle('hidden',!premium);
 }
+function validateCode(code){
+  code=code.toUpperCase().replace(/-/g,'').replace(/\s/g,'');
+  if(code.length!==16)return false;if(!/^[A-Z0-9]{16}$/.test(code))return false;
+  const prefix=code.substring(0,12),check=code.substring(12,16);let sum=0;
+  for(let i=0;i<prefix.length;i++)sum+=prefix.charCodeAt(i);
+  return ((sum*7+13)%10000).toString().padStart(4,'0')===check;
+}
+function formatCode(input){
+  let v=input.value.toUpperCase().replace(/[^A-Z0-9]/g,'');if(v.length>16)v=v.substring(0,16);
+  let formatted='';for(let i=0;i<v.length;i++){if(i>0&&i%4===0)formatted+='-';formatted+=v[i]}
+  input.value=formatted;
+}
+function activatePremium(){
+  const input=document.getElementById('activateCode');const code=input.value.trim();
+  if(!code){toast('请输入激活码');return}
+  if(validateCode(code)){setPremium(true);toast('激活成功！高级功能已解锁');input.value=''}else{toast('激活码无效，请检查后重试')}
+}
+function resetPremium(){if(confirm('确定要恢复未激活状态吗？')){setPremium(false);toast('已恢复未激活状态')}}
+function getVideoQuality(){return isPremium()?{width:{ideal:1920},height:{ideal:1080}}:{width:{ideal:1280},height:{ideal:720}}}
+function limitTransmissionQuality(call){
+  try{
+    const senders=call.peerConnection.getSenders();
+    senders.forEach(sender=>{
+      if(sender.track&&sender.track.kind==='video'){
+        const params=sender.getParameters();
+        if(!params.encodings||params.encodings.length===0)params.encodings=[{}];
+        if(isPremium()){
+          params.encodings[0].maxBitrate=2500000;
+          params.encodings[0].scaleResolutionDownBy=1;
+        }else{
+          params.encodings[0].maxBitrate=600000;
+          params.encodings[0].scaleResolutionDownBy=1.5;
+        }
+        sender.setParameters(params);
+      }
+    });
+  }catch(e){console.log('传输质量限制设置失败:',e)}
+}
+
+// ===== 初始化 =====
+document.addEventListener('DOMContentLoaded',()=>{
+  updatePremiumUI();updatePairStatusBar();
+  if(!localStorage.getItem('couple_camera_perm_shown')){
+    localStorage.setItem('couple_camera_perm_shown','1');goPage('perm');
+  }else{
+    goPage('home');
+    setTimeout(()=>{checkAutoConnect()},500);
+  }
+});
+document.addEventListener('input',(e)=>{
+  if(e.target.id==='homeRoomInput'){
+    const v=e.target.value.replace(/\D/g,'').substring(0,6);e.target.value=v;
+    const btn=document.getElementById('homeJoinBtn');if(btn)btn.disabled=v.length!==6;
+  }
+  if(e.target.id==='customPairInput'){e.target.value=e.target.value.replace(/\D/g,'').substring(0,6)}
+});
+if('serviceWorker' in navigator){window.addEventListener('load',()=>{navigator.serviceWorker.register('./service-worker.js').catch(()=>{})})}
 </script>
 </body>
 </html>
