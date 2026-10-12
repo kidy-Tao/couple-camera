@@ -244,6 +244,10 @@ body{display:flex;flex-direction:column;min-height:100vh;background:radial-gradi
     3. 连接成功后自动配对，下次打开自动连接<br>
     4. 有网就能连，不用同一WiFi，支持多人同时看
   </div>
+  <div class="diagnostic-box" id="diagBox" style="margin:16px 20px;background:#0a0a15;border:1px solid var(--border);border-radius:12px;padding:12px;font-size:11px;font-family:monospace;color:var(--txt2);line-height:1.8">
+    <div style="color:var(--teal);font-weight:bold;margin-bottom:4px">🔧 诊断信息 v2.1</div>
+    <div id="diagContent">检测中...</div>
+  </div>
 </div>
 
 <div id="pair" class="page">
@@ -876,6 +880,7 @@ function limitTransmissionQuality(call){
 // ===== 初始化 =====
 document.addEventListener('DOMContentLoaded',()=>{
   updatePremiumUI();updatePairStatusBar();
+  runDiagnostics();
   if(!localStorage.getItem('couple_camera_perm_shown')){
     localStorage.setItem('couple_camera_perm_shown','1');goPage('perm');
   }else{
@@ -883,6 +888,21 @@ document.addEventListener('DOMContentLoaded',()=>{
     setTimeout(()=>{checkAutoConnect()},500);
   }
 });
+function runDiagnostics(){
+  const box=document.getElementById('diagContent');
+  if(!box)return;
+  let html='';
+  html+='协议：'+location.protocol+'<br>';
+  html+='RTCPeerConnection：'+(window.RTCPeerConnection?'✅支持':'❌不支持')+'<br>';
+  html+='getUserMedia：'+(navigator.mediaDevices&&navigator.mediaDevices.getUserMedia?'✅支持':'❌不支持')+'<br>';
+  html+='RTCDataChannel：'+(window.RTCDataChannel?'✅支持':'❌不支持')+'<br>';
+  // 测试信令服务器连通性
+  html+='信令服务器：检测中...<br>';
+  fetch('https://0.peerjs.com/',{mode:'no-cors',cache:'no-store'})
+    .then(()=>{box.innerHTML=box.innerHTML.replace('信令服务器：检测中...','信令服务器：✅可访问')})
+    .catch(()=>{box.innerHTML=box.innerHTML.replace('信令服务器：检测中...','信令服务器：❌无法访问')});
+  box.innerHTML=html;
+}
 document.addEventListener('input',(e)=>{
   if(e.target.id==='homeRoomInput'){
     const v=e.target.value.replace(/\D/g,'').substring(0,6);e.target.value=v;
