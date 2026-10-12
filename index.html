@@ -344,6 +344,7 @@ body{display:flex;flex-direction:column;min-height:100vh;background:radial-gradi
       <button class="btn btn-ghost btn-sm" style="width:100%;margin-top:12px" onclick="copyRoomCode()">📋 复制房间号</button>
     </div>
     <div class="conn-status"><div class="icon">⏳</div><div class="text">等待对方加入...<br>支持多人同时输入房间号查看<br>加入后自动进入拍摄画面</div></div>
+    <div class="debug-box" id="lensDebugBox" style="margin:0 20px;background:#0a0a15;border:1px solid var(--border);border-radius:12px;padding:12px;font-size:11px;font-family:monospace;color:var(--orange);max-height:150px;overflow-y:auto;line-height:1.8"></div>
   </div>
   <div id="lensConnected" class="hidden">
     <div class="camera-wrap">
@@ -370,7 +371,9 @@ body{display:flex;flex-direction:column;min-height:100vh;background:radial-gradi
     <div class="status-pill"><span class="status-dot" id="mirrorDot"></span><span id="mirrorStatus">未连接</span></div>
   </div>
   <div id="mirrorConnecting" class="hidden">
-    <div class="conn-status" style="padding:50px 20px"><div class="icon">🔄</div><div class="text">正在连接拍摄端...<br>房间号：<b id="connectingRoomCode">------</b></div></div>
+    <div class="conn-status" style="padding:30px 20px"><div class="icon">🔄</div><div class="text">正在连接拍摄端...<br>房间号：<b id="connectingRoomCode">------</b></div></div>
+    <div class="debug-box" id="debugBox" style="margin:0 20px;background:#0a0a15;border:1px solid var(--border);border-radius:12px;padding:12px;font-size:11px;font-family:monospace;color:var(--teal);max-height:200px;overflow-y:auto;line-height:1.8"></div>
+    <button class="btn btn-ghost" style="margin:12px 20px;width:auto" onclick="sendDebugLog()">复制调试日志</button>
   </div>
   <div id="mirrorConnected" class="hidden">
     <div class="viewer-wrap">
@@ -437,16 +440,44 @@ let currentRole=null;
 const PEER_PREFIX='couple-cam-';
 const PAIR_KEY='couple_pair_info';
 const ICE_CONFIG={iceServers:[
+  {urls:'stun:stun.qq.com:3478'},
+  {urls:'stun:stun.miwifi.com:3478'},
+  {urls:'stun:stun.voipgate.com:3478'},
+  {urls:'stun:fwa.lifesizecloud.com:3478'},
   {urls:'stun:stun.l.google.com:19302'},
-  {urls:'stun:stun1.l.google.com:19302'},
-  {urls:'stun:stun2.l.google.com:19302'},
   {urls:'turn:openrelay.metered.ca:80',username:'openrelayproject',credential:'openrelayproject'},
   {urls:'turn:openrelay.metered.ca:443',username:'openrelayproject',credential:'openrelayproject'},
-  {urls:'turn:openrelay.metered.ca:443?transport=tcp',username:'openrelayproject',credential:'openrelayproject'}
+  {urls:'turn:numb.viagenie.ca:3478',username:'webrtc@live.com',credential:'muazkh'},
+  {urls:'turn:turn.bistri.com:80',username:'homeo',credential:'homeo'}
 ]};
 const PEER_OPTIONS={host:'0.peerjs.com',port:443,path:'/',secure:true,debug:1,config:ICE_CONFIG};
 let connectTimeout=null;
 function clearConnectTimeout(){if(connectTimeout){clearTimeout(connectTimeout);connectTimeout=null}}
+
+// ===== 调试日志 =====
+function debugLog(msg,side){
+  const box=document.getElementById(side==='lens'?'lensDebugBox':'debugBox');
+  const time=new Date().toLocaleTimeString();
+  const line='['+time+'] '+msg;
+  console.log('[DEBUG]',msg);
+  if(box){box.innerHTML+=line+'<br>';box.scrollTop=box.scrollHeight}
+}
+function sendDebugLog(){
+  const box=document.getElementById('debugBox');
+  if(!box)return;
+  const text=box.innerText;
+  navigator.clipboard.writeText(text).then(()=>toast('调试日志已复制')).catch(()=>toast('复制失败，请手动截图'));
+}
+
+// ===== WebRTC 兼容性检测 =====
+function checkWebRTCSupport(){
+  const issues=[];
+  if(!window.RTCPeerConnection)issues.push('不支持 RTCPeerConnection');
+  if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia)issues.push('不支持 getUserMedia');
+  if(!window.RTCDataChannel)issues.push('不支持 RTCDataChannel');
+  if(location.protocol==='file:')issues.push('file://协议可能限制摄像头访问');
+  return issues;
+}
 
 // ===== 配对管理 =====
 function getPairInfo(){try{return JSON.parse(localStorage.getItem(PAIR_KEY))||null}catch(e){return null}}
@@ -553,15 +584,22 @@ function generateRoomCode(){return String(Math.floor(100000+Math.random()*900000
 function initLens(){document.getElementById('lensWaiting').classList.remove('hidden');document.getElementById('lensConnected').classList.add('hidden');setStatus('lens','未连接','')}
 async function lensCreateRoom(fixedCode){
   try{
+    const issues=checkWebRTCSupport();
+    if(issues.length>0)debugLog('环境检测：'+issues.join('；'),'lens');
+    else debugLog('环境检测：WebRTC支持正常','lens');
+    debugLog('正在启动摄像头...','lens');
     const quality=getVideoQuality();
     localStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment',width:quality.width,height:quality.height},audio:false});
+    debugLog('摄像头启动成功，分辨率：'+quality.width+'x'+quality.height,'lens');
     document.getElementById('videoLens').srcObject=localStream;
     currentRoomCode=fixedCode||generateRoomCode();
     document.getElementById('lensRoomCode').textContent=currentRoomCode;
     document.getElementById('lensQr').src='https://api.qrserver.com/v1/create-qr-code/?size=200x200&margin=10&data='+currentRoomCode;
+    debugLog('正在连接信令服务器(0.peerjs.com:443)...','lens');
     peer=new Peer(PEER_PREFIX+currentRoomCode,PEER_OPTIONS);
-    peer.on('open',(id)=>{console.log('拍摄端Peer已创建:',id);goPage('lens');setStatus('lens','等待连接','wait');toast(fixedCode?'已用配对码创建房间：'+currentRoomCode:'房间已创建：'+currentRoomCode)});
+    peer.on('open',(id)=>{debugLog('信令服务器连接成功，PeerID:'+id,'lens');console.log('拍摄端Peer已创建:',id);goPage('lens');setStatus('lens','等待连接','wait');toast(fixedCode?'已用配对码创建房间：'+currentRoomCode:'房间已创建：'+currentRoomCode)});
     peer.on('error',(err)=>{
+      debugLog('Peer错误：'+err.type+' - '+(err.message||''),'lens');
       console.error('Peer错误:',err);
       if(err.type==='unavailable-id'){
         currentRoomCode=generateRoomCode();
@@ -574,10 +612,11 @@ async function lensCreateRoom(fixedCode){
       }else{toast('连接错误：'+err.type)}
     });
     setupLensPeerHandlers();
-  }catch(e){console.error(e);toast('摄像头启动失败：'+e.message+'。请检查摄像头权限')}
+  }catch(e){debugLog('摄像头启动失败：'+e.message,'lens');console.error(e);toast('摄像头启动失败：'+e.message+'。请检查摄像头权限')}
 }
 function setupLensPeerHandlers(){
   peer.on('call',(call)=>{
+    debugLog('收到查看端呼叫，正在应答...','lens');
     console.log('收到查看端呼叫');
     const maxViewers=isPremium()?5:1;
     if(viewerCount>=maxViewers){
@@ -585,8 +624,10 @@ function setupLensPeerHandlers(){
     }
     calls.push(call);call.answer(localStream);
     limitTransmissionQuality(call);
-    call.on('close',()=>{viewerCount=Math.max(0,viewerCount-1);updateViewerCount()});
+    call.on('stream',()=>debugLog('视频流已发送给查看端','lens'));
+    call.on('close',()=>{viewerCount=Math.max(0,viewerCount-1);updateViewerCount();debugLog('查看端断开，当前'+viewerCount+'人在看','lens')});
     viewerCount++;updateViewerCount();lensConnected();
+    debugLog('连接成功，当前'+viewerCount+'人在看','lens');
     if(!getPairInfo()){savePairInfo(currentRoomCode,'lens');toast('已自动配对，下次打开自动连接')}
   });
   peer.on('connection',(conn)=>{
@@ -651,31 +692,46 @@ function mirrorConnectFromHome(){
 async function doMirrorConnect(roomCode){
   try{
     clearConnectTimeout();
+    const issues=checkWebRTCSupport();
+    if(issues.length>0)debugLog('环境检测：'+issues.join('；'));
+    else debugLog('环境检测：WebRTC支持正常');
+    debugLog('正在连接信令服务器(0.peerjs.com:443)...');
     connectTimeout=setTimeout(()=>{
+      debugLog('连接超时（15秒）');
       toast('连接超时（15秒），请确认拍摄端已创建房间且网络正常');
       goHome();
     },15000);
     peer=new Peer(PEER_OPTIONS);
     peer.on('open',(id)=>{
+      debugLog('信令服务器连接成功，PeerID:'+id);
+      debugLog('正在呼叫房间：'+PEER_PREFIX+roomCode);
       console.log('查看端Peer已创建:',id);
       const conn=peer.connect(PEER_PREFIX+roomCode,{reliable:true});dataChannels=[conn];
+      conn.on('open',()=>debugLog('数据通道已建立'));
       conn.on('data',(data)=>{
         const msg=typeof data==='string'?JSON.parse(data):data;
         if(msg.type==='photo'){addPhoto(msg.data);document.getElementById('mirrorFlash').classList.add('flash');setTimeout(()=>document.getElementById('mirrorFlash').classList.remove('flash'),200)}
       });
-      conn.on('error',(err)=>{console.error('数据通道错误:',err)});
-      const call=peer.call(PEER_PREFIX+roomCode,null);calls=[call];
+      conn.on('error',(err)=>{debugLog('数据通道错误：'+err.type);console.error('数据通道错误:',err)});
+      const call=peer.call(PEER_PREFIX+roomCode,null,{
+        metadata:{role:'mirror'},
+        sdpTransform:function(sdp){return sdp}
+      });calls=[call];
       call.on('stream',(remoteStream)=>{
         clearConnectTimeout();
+        debugLog('收到视频流，连接成功！');
         console.log('收到视频流');
         document.getElementById('videoMirror').srcObject=remoteStream;
         mirrorConnected();
         if(!getPairInfo()){savePairInfo(roomCode,'mirror');toast('已自动配对，下次打开自动连接')}
       });
-      call.on('error',(err)=>{clearConnectTimeout();console.error('呼叫错误:',err);toast('连接失败：'+(err.type||err.message));goHome()});
+      call.on('iceStateChanged',(state)=>{debugLog('ICE状态：'+state)});
+      call.on('close',()=>debugLog('呼叫已关闭'));
+      call.on('error',(err)=>{clearConnectTimeout();debugLog('呼叫错误：'+err.type);console.error('呼叫错误:',err);toast('连接失败：'+(err.type||err.message));goHome()});
     });
     peer.on('error',(err)=>{
       clearConnectTimeout();
+      debugLog('Peer错误：'+err.type+' - '+(err.message||''));
       console.error('Peer错误:',err);
       if(err.type==='peer-unavailable')toast('房间不存在，请检查房间号是否正确');
       else if(err.type==='network')toast('网络错误，请检查网络连接');
@@ -683,7 +739,7 @@ async function doMirrorConnect(roomCode){
       else toast('连接失败：'+err.type);
       goHome();
     });
-  }catch(e){clearConnectTimeout();console.error(e);toast('连接失败：'+e.message);goHome()}
+  }catch(e){clearConnectTimeout();debugLog('异常：'+e.message);console.error(e);toast('连接失败：'+e.message);goHome()}
 }
 function mirrorConnected(){
   document.getElementById('mirrorConnecting').classList.add('hidden');
