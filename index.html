@@ -596,23 +596,38 @@ async function lensCreateRoom(fixedCode){
     document.getElementById('lensRoomCode').textContent=currentRoomCode;
     document.getElementById('lensQr').src='https://api.qrserver.com/v1/create-qr-code/?size=200x200&margin=10&data='+currentRoomCode;
     debugLog('正在连接信令服务器(0.peerjs.com:443)...','lens');
-    peer=new Peer(PEER_PREFIX+currentRoomCode,PEER_OPTIONS);
-    peer.on('open',(id)=>{debugLog('信令服务器连接成功，PeerID:'+id,'lens');console.log('拍摄端Peer已创建:',id);goPage('lens');setStatus('lens','等待连接','wait');toast(fixedCode?'已用配对码创建房间：'+currentRoomCode:'房间已创建：'+currentRoomCode)});
-    peer.on('error',(err)=>{
-      debugLog('Peer错误：'+err.type+' - '+(err.message||''),'lens');
-      console.error('Peer错误:',err);
-      if(err.type==='unavailable-id'){
-        currentRoomCode=generateRoomCode();
-        document.getElementById('lensRoomCode').textContent=currentRoomCode;
-        document.getElementById('lensQr').src='https://api.qrserver.com/v1/create-qr-code/?size=200x200&margin=10&data='+currentRoomCode;
-        peer=new Peer(PEER_PREFIX+currentRoomCode,PEER_OPTIONS);
-        setupLensPeerHandlers();
-      }else if(err.type==='network'||err.type==='socket-error'||err.type==='server-error'){
-        toast('信令服务器连接失败，请检查网络后重试');
-      }else{toast('连接错误：'+err.type)}
-    });
-    setupLensPeerHandlers();
+    createLensPeer();
   }catch(e){debugLog('摄像头启动失败：'+e.message,'lens');console.error(e);toast('摄像头启动失败：'+e.message+'。请检查摄像头权限')}
+}
+function createLensPeer(){
+  peer=new Peer(PEER_PREFIX+currentRoomCode,PEER_OPTIONS);
+  peer.on('open',(id)=>{
+    debugLog('信令服务器连接成功，PeerID:'+id,'lens');
+    console.log('拍摄端Peer已创建:',id);
+    goPage('lens');
+    setStatus('lens','等待连接','wait');
+    toast('房间已创建：'+currentRoomCode);
+  });
+  peer.on('error',(err)=>{
+    debugLog('Peer错误：'+err.type+' - '+(err.message||''),'lens');
+    console.error('Peer错误:',err);
+    if(err.type==='unavailable-id'){
+      debugLog('房间号被占用，重新生成...','lens');
+      currentRoomCode=generateRoomCode();
+      document.getElementById('lensRoomCode').textContent=currentRoomCode;
+      document.getElementById('lensQr').src='https://api.qrserver.com/v1/create-qr-code/?size=200x200&margin=10&data='+currentRoomCode;
+      setTimeout(()=>createLensPeer(),500);
+    }else if(err.type==='network'||err.type==='socket-error'||err.type==='server-error'){
+      toast('信令服务器连接失败，请检查网络后重试');
+    }else if(err.type==='peer-unavailable'){
+      // 拍摄端不应该出现这个，忽略
+    }else{toast('连接错误：'+err.type)}
+  });
+  peer.on('disconnected',()=>{
+    debugLog('信令服务器断开，尝试重连...','lens');
+    try{peer.reconnect()}catch(e){}
+  });
+  setupLensPeerHandlers();
 }
 function setupLensPeerHandlers(){
   peer.on('call',(call)=>{
@@ -713,10 +728,9 @@ async function doMirrorConnect(roomCode){
         if(msg.type==='photo'){addPhoto(msg.data);document.getElementById('mirrorFlash').classList.add('flash');setTimeout(()=>document.getElementById('mirrorFlash').classList.remove('flash'),200)}
       });
       conn.on('error',(err)=>{debugLog('数据通道错误：'+err.type);console.error('数据通道错误:',err)});
-      const call=peer.call(PEER_PREFIX+roomCode,null,{
-        metadata:{role:'mirror'},
-        sdpTransform:function(sdp){return sdp}
-      });calls=[call];
+      conn.on('close',()=>debugLog('数据通道已关闭'));
+      const call=peer.call(PEER_PREFIX+roomCode,null);calls=[call];
+      debugLog('视频呼叫已发起，等待应答...');
       call.on('stream',(remoteStream)=>{
         clearConnectTimeout();
         debugLog('收到视频流，连接成功！');
@@ -725,18 +739,29 @@ async function doMirrorConnect(roomCode){
         mirrorConnected();
         if(!getPairInfo()){savePairInfo(roomCode,'mirror');toast('已自动配对，下次打开自动连接')}
       });
-      call.on('iceStateChanged',(state)=>{debugLog('ICE状态：'+state)});
-      call.on('close',()=>debugLog('呼叫已关闭'));
-      call.on('error',(err)=>{clearConnectTimeout();debugLog('呼叫错误：'+err.type);console.error('呼叫错误:',err);toast('连接失败：'+(err.type||err.message));goHome()});
+      call.on('iceStateChanged',(state)=>{debugLog('ICE连接状态：'+state)});
+      call.on('close',()=>debugLog('视频呼叫已关闭'));
+      call.on('error',(err)=>{
+        clearConnectTimeout();
+        debugLog('视频呼叫错误：'+err.type+' - '+(err.message||''));
+        console.error('呼叫错误:',err);
+        toast('视频连接失败：'+(err.type||err.message));
+        goHome();
+      });
     });
     peer.on('error',(err)=>{
       clearConnectTimeout();
       debugLog('Peer错误：'+err.type+' - '+(err.message||''));
       console.error('Peer错误:',err);
-      if(err.type==='peer-unavailable')toast('房间不存在，请检查房间号是否正确');
-      else if(err.type==='network')toast('网络错误，请检查网络连接');
-      else if(err.type==='socket-error'||err.type==='server-error')toast('信令服务器连接失败，请稍后重试');
-      else toast('连接失败：'+err.type);
+      if(err.type==='peer-unavailable'){
+        toast('房间不存在，请确认拍摄端已创建房间且房间号正确');
+      }else if(err.type==='network'){
+        toast('网络错误，请检查网络连接');
+      }else if(err.type==='socket-error'||err.type==='server-error'){
+        toast('信令服务器连接失败，请稍后重试');
+      }else{
+        toast('连接失败：'+err.type);
+      }
       goHome();
     });
   }catch(e){clearConnectTimeout();debugLog('异常：'+e.message);console.error(e);toast('连接失败：'+e.message);goHome()}
