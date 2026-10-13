@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>合拍 CoShot</title>
+<title>合拍 CoShot v2.1</title>
 <link rel="manifest" href="manifest.json">
 <link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
 <link rel="apple-touch-icon" href="icon-180.png">
@@ -210,6 +210,10 @@ body{display:flex;flex-direction:column;min-height:100vh;background:radial-gradi
 </div>
 
 <div id="home" class="page">
+  <div class="diagnostic-box" id="diagBox" style="margin:12px 20px 0;background:#0a0a15;border:1px solid var(--teal);border-radius:12px;padding:12px;font-size:11px;font-family:monospace;color:var(--txt2);line-height:1.8">
+    <div style="color:var(--teal);font-weight:bold;margin-bottom:4px">🔧 诊断信息 v2.1（如看不到说明是旧版本，请刷新）</div>
+    <div id="diagContent">检测中...</div>
+  </div>
   <div class="home-hero">
     <div class="home-logo">📸</div>
     <div class="home-brand">合拍<b>CoShot</b></div>
@@ -435,6 +439,7 @@ body{display:flex;flex-direction:column;min-height:100vh;background:radial-gradi
 
 <script>
 let peer=null,localStream=null,dataChannels=[],calls=[],statsInterval=null;
+let lensPCs=[],mirrorPC=null; // 手动WebRTC连接
 let photos=[],currentPhotoIndex=0,facingMode='environment',flashOn=false,currentRoomCode='',viewerCount=0;
 let currentRole=null;
 const PEER_PREFIX='couple-cam-';
@@ -561,6 +566,8 @@ function stopAll(){
   if(localStream){localStream.getTracks().forEach(t=>t.stop());localStream=null}
   dataChannels.forEach(dc=>{try{dc.close()}catch(e){}});dataChannels=[];
   calls.forEach(c=>{try{c.close()}catch(e){}});calls=[];
+  lensPCs.forEach(pc=>{try{pc.close()}catch(e){}});lensPCs=[];
+  if(mirrorPC){try{mirrorPC.close()}catch(e){}mirrorPC=null}
   viewerCount=0;
   if(statsInterval){clearInterval(statsInterval);statsInterval=null}
   ['lensWaiting','lensConnected','mirrorConnecting','mirrorConnected'].forEach(id=>{const el=document.getElementById(id);if(el)el.classList.add('hidden')});
@@ -630,31 +637,87 @@ function createLensPeer(){
   setupLensPeerHandlers();
 }
 function setupLensPeerHandlers(){
-  peer.on('call',(call)=>{
-    debugLog('收到查看端呼叫，正在应答...','lens');
-    console.log('收到查看端呼叫');
-    const maxViewers=isPremium()?5:1;
-    if(viewerCount>=maxViewers){
-      call.close();toast('免费版最多'+maxViewers+'人查看，升级高级版解锁5人');return;
-    }
-    calls.push(call);call.answer(localStream);
-    limitTransmissionQuality(call);
-    call.on('stream',()=>debugLog('视频流已发送给查看端','lens'));
-    call.on('close',()=>{viewerCount=Math.max(0,viewerCount-1);updateViewerCount();debugLog('查看端断开，当前'+viewerCount+'人在看','lens')});
-    viewerCount++;updateViewerCount();lensConnected();
-    debugLog('连接成功，当前'+viewerCount+'人在看','lens');
-    if(!getPairInfo()){savePairInfo(currentRoomCode,'lens');toast('已自动配对，下次打开自动连接')}
-  });
   peer.on('connection',(conn)=>{
+    debugLog('查看端数据通道已连接','lens');
     dataChannels.push(conn);
-    conn.on('data',(data)=>{
+    let pc=null;
+    conn.on('data',async (data)=>{
       const msg=typeof data==='string'?JSON.parse(data):data;
+      if(msg.type==='offer'){
+        debugLog('收到查看端Offer，创建RTCPeerConnection...','lens');
+        const maxViewers=isPremium()?5:1;
+        if(lensPCs.length>=maxViewers){
+          debugLog('已达人数上限，拒绝连接','lens');
+          conn.send(JSON.stringify({type:'error',message:'已达人数上限'}));
+          return;
+        }
+        pc=new RTCPeerConnection(ICE_CONFIG);
+        lensPCs.push(pc);
+        // 添加本地媒体流
+        localStream.getTracks().forEach(t=>pc.addTrack(t,localStream));
+        // 限制传输质量
+        setTimeout(()=>{
+          try{
+            const senders=pc.getSenders();
+            senders.forEach(sender=>{
+              if(sender.track&&sender.track.kind==='video'){
+                const params=sender.getParameters();
+                if(!params.encodings||params.encodings.length===0)params.encodings=[{}];
+                if(isPremium()){params.encodings[0].maxBitrate=2500000;params.encodings[0].scaleResolutionDownBy=1}
+                else{params.encodings[0].maxBitrate=600000;params.encodings[0].scaleResolutionDownBy=1.5}
+                sender.setParameters(params);
+              }
+            });
+          }catch(e){console.log('传输质量限制设置失败:',e)}
+        },500);
+        // 发送ICE候选
+        pc.onicecandidate=(e)=>{
+          if(e.candidate){
+            debugLog('发送ICE候选给查看端','lens');
+            conn.send(JSON.stringify({type:'ice',candidate:e.candidate}));
+          }
+        };
+        pc.oniceconnectionstatechange=()=>{
+          debugLog('ICE连接状态：'+pc.iceConnectionState,'lens');
+          if(pc.iceConnectionState==='connected'){
+            viewerCount=lensPCs.filter(p=>p.iceConnectionState==='connected'||p.iceConnectionState==='completed').length;
+            updateViewerCount();lensConnected();
+            debugLog('连接成功！当前'+viewerCount+'人在看','lens');
+            if(!getPairInfo()){savePairInfo(currentRoomCode,'lens');toast('已自动配对，下次打开自动连接')}
+          }
+          if(pc.iceConnectionState==='disconnected'||pc.iceConnectionState==='failed'){
+            const idx=lensPCs.indexOf(pc);if(idx>-1)lensPCs.splice(idx,1);
+            viewerCount=lensPCs.filter(p=>p.iceConnectionState==='connected'||p.iceConnectionState==='completed').length;
+            updateViewerCount();
+            debugLog('查看端断开，当前'+viewerCount+'人在看','lens');
+          }
+        };
+        try{
+          await pc.setRemoteDescription(new RTCSessionDescription(msg.sdp));
+          debugLog('设置远程描述成功，创建Answer...','lens');
+          const answer=await pc.createAnswer();
+          await pc.setLocalDescription(answer);
+          conn.send(JSON.stringify({type:'answer',sdp:answer}));
+          debugLog('Answer已发送','lens');
+        }catch(e){
+          debugLog('处理Offer失败：'+e.message,'lens');
+          conn.send(JSON.stringify({type:'error',message:e.message}));
+        }
+      }
+      if(msg.type==='ice'&&pc){
+        try{await pc.addIceCandidate(new RTCIceCandidate(msg.candidate));debugLog('添加查看端ICE候选成功','lens')}catch(e){debugLog('添加ICE候选失败：'+e.message,'lens')}
+      }
       if(msg.type==='takePhoto')lensTakePhoto();
       if(msg.type==='flip')lensFlipCamera();
       if(msg.type==='flash')lensToggleFlash();
       if(msg.type==='zoom')lensZoom(msg.value);
     });
-    conn.on('close',()=>{const idx=dataChannels.indexOf(conn);if(idx>-1)dataChannels.splice(idx,1)});
+    conn.on('close',()=>{
+      const idx=dataChannels.indexOf(conn);if(idx>-1)dataChannels.splice(idx,1);
+      if(pc){try{pc.close()}catch(e){}const pidx=lensPCs.indexOf(pc);if(pidx>-1)lensPCs.splice(pidx,1)}
+      viewerCount=lensPCs.filter(p=>p.iceConnectionState==='connected'||p.iceConnectionState==='completed').length;
+      updateViewerCount();
+    });
   });
 }
 function updateViewerCount(){const el=document.getElementById('viewerCountDisplay');if(el)el.textContent=viewerCount+'人在看'}
@@ -683,6 +746,7 @@ async function lensFlipCamera(){
     localStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:facingMode,width:quality.width,height:quality.height},audio:false});
     document.getElementById('videoLens').srcObject=localStream;
     calls.forEach(call=>{try{const sender=call.peerConnection.getSenders().find(s=>s.track&&s.track.kind==='video');if(sender)sender.replaceTrack(localStream.getVideoTracks()[0])}catch(e){}});
+    lensPCs.forEach(pc=>{try{const sender=pc.getSenders().find(s=>s.track&&s.track.kind==='video');if(sender)sender.replaceTrack(localStream.getVideoTracks()[0])}catch(e){}});
   }
 }
 function lensToggleFlash(){
@@ -712,42 +776,67 @@ async function doMirrorConnect(roomCode){
     else debugLog('环境检测：WebRTC支持正常');
     debugLog('正在连接信令服务器(0.peerjs.com:443)...');
     connectTimeout=setTimeout(()=>{
-      debugLog('连接超时（15秒）');
-      toast('连接超时（15秒），请确认拍摄端已创建房间且网络正常');
+      debugLog('连接超时（20秒）');
+      toast('连接超时，请确认拍摄端已创建房间且网络正常');
       goHome();
-    },15000);
+    },20000);
     peer=new Peer(PEER_OPTIONS);
     peer.on('open',(id)=>{
       debugLog('信令服务器连接成功，PeerID:'+id);
-      debugLog('正在呼叫房间：'+PEER_PREFIX+roomCode);
-      console.log('查看端Peer已创建:',id);
-      const conn=peer.connect(PEER_PREFIX+roomCode,{reliable:true});dataChannels=[conn];
-      conn.on('open',()=>debugLog('数据通道已建立'));
-      conn.on('data',(data)=>{
+      debugLog('正在建立数据通道：'+PEER_PREFIX+roomCode);
+      const conn=peer.connect(PEER_PREFIX+roomCode,{reliable:true});
+      dataChannels=[conn];
+      conn.on('open',async ()=>{
+        debugLog('数据通道已建立，创建WebRTC连接...');
+        mirrorPC=new RTCPeerConnection(ICE_CONFIG);
+        // 接收视频流
+        mirrorPC.ontrack=(e)=>{
+          clearConnectTimeout();
+          debugLog('收到视频流，连接成功！');
+          document.getElementById('videoMirror').srcObject=e.streams[0];
+          mirrorConnected();
+          if(!getPairInfo()){savePairInfo(roomCode,'mirror');toast('已自动配对，下次打开自动连接')}
+        };
+        mirrorPC.onicecandidate=(e)=>{
+          if(e.candidate){
+            debugLog('发送ICE候选给拍摄端');
+            conn.send(JSON.stringify({type:'ice',candidate:e.candidate}));
+          }
+        };
+        mirrorPC.oniceconnectionstatechange=()=>{
+          debugLog('ICE连接状态：'+mirrorPC.iceConnectionState);
+          if(mirrorPC.iceConnectionState==='failed'){
+            toast('连接失败，请检查网络后重试');goHome();
+          }
+        };
+        try{
+          debugLog('创建Offer...');
+          const offer=await mirrorPC.createOffer({offerToReceiveVideo:true,offerToReceiveAudio:false});
+          await mirrorPC.setLocalDescription(offer);
+          debugLog('发送Offer给拍摄端...');
+          conn.send(JSON.stringify({type:'offer',sdp:offer}));
+        }catch(e){
+          debugLog('创建Offer失败：'+e.message);
+          toast('创建连接失败：'+e.message);goHome();
+        }
+      });
+      conn.on('data',async (data)=>{
         const msg=typeof data==='string'?JSON.parse(data):data;
+        if(msg.type==='answer'&&mirrorPC){
+          debugLog('收到拍摄端Answer，设置远程描述...');
+          try{
+            await mirrorPC.setRemoteDescription(new RTCSessionDescription(msg.sdp));
+            debugLog('远程描述设置成功，等待ICE连接...');
+          }catch(e){debugLog('设置Answer失败：'+e.message)}
+        }
+        if(msg.type==='ice'&&mirrorPC){
+          try{await mirrorPC.addIceCandidate(new RTCIceCandidate(msg.candidate));debugLog('添加拍摄端ICE候选成功')}catch(e){debugLog('添加ICE候选失败：'+e.message)}
+        }
         if(msg.type==='photo'){addPhoto(msg.data);document.getElementById('mirrorFlash').classList.add('flash');setTimeout(()=>document.getElementById('mirrorFlash').classList.remove('flash'),200)}
+        if(msg.type==='error'){debugLog('拍摄端错误：'+msg.message);toast('连接失败：'+msg.message);goHome()}
       });
       conn.on('error',(err)=>{debugLog('数据通道错误：'+err.type);console.error('数据通道错误:',err)});
       conn.on('close',()=>debugLog('数据通道已关闭'));
-      const call=peer.call(PEER_PREFIX+roomCode,null);calls=[call];
-      debugLog('视频呼叫已发起，等待应答...');
-      call.on('stream',(remoteStream)=>{
-        clearConnectTimeout();
-        debugLog('收到视频流，连接成功！');
-        console.log('收到视频流');
-        document.getElementById('videoMirror').srcObject=remoteStream;
-        mirrorConnected();
-        if(!getPairInfo()){savePairInfo(roomCode,'mirror');toast('已自动配对，下次打开自动连接')}
-      });
-      call.on('iceStateChanged',(state)=>{debugLog('ICE连接状态：'+state)});
-      call.on('close',()=>debugLog('视频呼叫已关闭'));
-      call.on('error',(err)=>{
-        clearConnectTimeout();
-        debugLog('视频呼叫错误：'+err.type+' - '+(err.message||''));
-        console.error('呼叫错误:',err);
-        toast('视频连接失败：'+(err.type||err.message));
-        goHome();
-      });
     });
     peer.on('error',(err)=>{
       clearConnectTimeout();
@@ -852,6 +941,7 @@ function limitTransmissionQuality(call){
 // ===== 初始化 =====
 document.addEventListener('DOMContentLoaded',()=>{
   updatePremiumUI();updatePairStatusBar();
+  runDiagnostics();
   if(!localStorage.getItem('couple_camera_perm_shown')){
     localStorage.setItem('couple_camera_perm_shown','1');goPage('perm');
   }else{
@@ -859,6 +949,21 @@ document.addEventListener('DOMContentLoaded',()=>{
     setTimeout(()=>{checkAutoConnect()},500);
   }
 });
+function runDiagnostics(){
+  const box=document.getElementById('diagContent');
+  if(!box)return;
+  let html='';
+  html+='协议：'+location.protocol+'<br>';
+  html+='RTCPeerConnection：'+(window.RTCPeerConnection?'✅支持':'❌不支持')+'<br>';
+  html+='getUserMedia：'+(navigator.mediaDevices&&navigator.mediaDevices.getUserMedia?'✅支持':'❌不支持')+'<br>';
+  html+='RTCDataChannel：'+(window.RTCDataChannel?'✅支持':'❌不支持')+'<br>';
+  // 测试信令服务器连通性
+  html+='信令服务器：检测中...<br>';
+  fetch('https://0.peerjs.com/',{mode:'no-cors',cache:'no-store'})
+    .then(()=>{box.innerHTML=box.innerHTML.replace('信令服务器：检测中...','信令服务器：✅可访问')})
+    .catch(()=>{box.innerHTML=box.innerHTML.replace('信令服务器：检测中...','信令服务器：❌无法访问')});
+  box.innerHTML=html;
+}
 document.addEventListener('input',(e)=>{
   if(e.target.id==='homeRoomInput'){
     const v=e.target.value.replace(/\D/g,'').substring(0,6);e.target.value=v;
