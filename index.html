@@ -305,7 +305,7 @@ body{display:flex;flex-direction:column;min-height:100vh;background:radial-gradi
       <div class="pay-price">¥9.9 <span>/ 永久激活</span></div>
     </div>
     <div class="feature-list">
-      <div class="feature-item"><div class="feature-icon">📹</div><div class="feature-info"><div class="feature-name">1080P 高清画质</div><div class="feature-desc">免费版 480P 预览+720P 拍照，高级版 1080P 全高清</div></div><div class="feature-lock">🔒</div></div>
+      <div class="feature-item"><div class="feature-icon">📹</div><div class="feature-info"><div class="feature-name">4K 超清画质</div><div class="feature-desc">免费版 720P 预览+1080P 拍照，高级版 1080P 预览+4K 拍照</div></div><div class="feature-lock">🔒</div></div>
       <div class="feature-item"><div class="feature-icon">👥</div><div class="feature-info"><div class="feature-name">多人同时查看</div><div class="feature-desc">免费版 1 人查看，高级版最多 5 人同时看画面</div></div><div class="feature-lock">🔒</div></div>
       <div class="feature-item"><div class="feature-icon">🎥</div><div class="feature-info"><div class="feature-name">远程录像</div><div class="feature-desc">查看端远程控制录制视频，自动保存</div></div><div class="feature-lock">🔒</div></div>
       <div class="feature-item"><div class="feature-icon">✨</div><div class="feature-info"><div class="feature-name">美颜滤镜</div><div class="feature-desc">实时美颜+多款滤镜，拍照直出好看</div></div><div class="feature-lock">🔒</div></div>
@@ -711,8 +711,8 @@ function setupLensPeerHandlers(){
               if(sender.track&&sender.track.kind==='video'){
                 const params=sender.getParameters();
                 if(!params.encodings||params.encodings.length===0)params.encodings=[{}];
-                if(isPremium()){params.encodings[0].maxBitrate=2500000;params.encodings[0].scaleResolutionDownBy=1}
-                else{params.encodings[0].maxBitrate=600000;params.encodings[0].scaleResolutionDownBy=1.5}
+                if(isPremium()){params.encodings[0].maxBitrate=4000000;params.encodings[0].scaleResolutionDownBy=1}
+                else{params.encodings[0].maxBitrate=1500000;params.encodings[0].scaleResolutionDownBy=1.5}
                 sender.setParameters(params);
               }
             });
@@ -971,7 +971,7 @@ function activatePremium(){
   if(validateCode(code)){setPremium(true);toast('激活成功！高级功能已解锁');input.value=''}else{toast('激活码无效，请检查后重试')}
 }
 function resetPremium(){if(confirm('确定要恢复未激活状态吗？')){setPremium(false);toast('已恢复未激活状态')}}
-function getVideoQuality(){return isPremium()?{width:{ideal:1920},height:{ideal:1080}}:{width:{ideal:1280},height:{ideal:720}}}
+function getVideoQuality(){return isPremium()?{width:{ideal:3840},height:{ideal:2160}}:{width:{ideal:1920},height:{ideal:1080}}}
 function limitTransmissionQuality(call){
   try{
     const senders=call.peerConnection.getSenders();
@@ -980,10 +980,10 @@ function limitTransmissionQuality(call){
         const params=sender.getParameters();
         if(!params.encodings||params.encodings.length===0)params.encodings=[{}];
         if(isPremium()){
-          params.encodings[0].maxBitrate=2500000;
+          params.encodings[0].maxBitrate=4000000;
           params.encodings[0].scaleResolutionDownBy=1;
         }else{
-          params.encodings[0].maxBitrate=600000;
+          params.encodings[0].maxBitrate=1500000;
           params.encodings[0].scaleResolutionDownBy=1.5;
         }
         sender.setParameters(params);
