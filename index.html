@@ -318,7 +318,7 @@ body{display:flex;flex-direction:column;min-height:100vh;background:radial-gradi
     <div class="pay-qr-box" style="text-align:center;margin:14px 0;padding:14px;background:#0a0a15;border-radius:12px;border:1px solid var(--border)">
       <div style="font-size:14px;font-weight:700;margin-bottom:10px;color:var(--txt)">📱 微信扫码支付 ¥9.9</div>
       <div style="width:180px;margin:0 auto;background:#fff;border-radius:12px;padding:8px">
-        <img src="pay-qr.jpg" alt="微信收款码" style="width:100%;border-radius:8px;display:block">
+        <img src="pay-qr.jpg" alt="微信收款码" style="width:100%;border-radius:8px;display:block" onerror="this.style.display='none';this.parentElement.innerHTML='<div style=&quot;height:160px;display:flex;align-items:center;justify-content:center;color:#999;font-size:12px&quot;>收款码未加载<br>请确认pay-qr.jpg已上传</div>'">
       </div>
       <div style="font-size:11px;color:var(--txt2);margin-top:8px;line-height:1.6">
         1. 微信扫码支付 ¥9.9<br>
@@ -540,7 +540,7 @@ function doAutoConnect(){
 }
 
 // ===== 角色切换 =====
-let switchPending=false;
+let switchPending=false,isSwitchingRole=false,switchRetryCount=0;
 function confirmSwitchRole(){
   const target=currentRole==='lens'?'查看端':'拍摄端';
   document.getElementById('switchTargetRole').textContent=target;
@@ -568,12 +568,15 @@ function executeSwitchRole(){
   if(!info){goHome();return}
   const newRole=currentRole==='lens'?'mirror':'lens';
   savePairInfo(info.code,newRole);
+  isSwitchingRole=true;
+  switchRetryCount=0;
   stopAll();
   toast('正在切换为'+(newRole==='lens'?'拍摄端':'查看端')+'...');
   setTimeout(()=>{
+    isSwitchingRole=false;
     if(newRole==='lens'){lensCreateRoom(info.code)}
     else{goPage('mirror');document.getElementById('connectingRoomCode').textContent=info.code;document.getElementById('mirrorConnecting').classList.remove('hidden');setStatus('mirror','连接中','wait');doMirrorConnect(info.code)}
-  },1500);
+  },2500);
 }
 function handleSwitchRequest(fromRole){
   // 对方请求切换角色
@@ -658,11 +661,17 @@ function createLensPeer(){
     debugLog('Peer错误：'+err.type+' - '+(err.message||''),'lens');
     console.error('Peer错误:',err);
     if(err.type==='unavailable-id'){
-      debugLog('房间号被占用，重新生成...','lens');
-      currentRoomCode=generateRoomCode();
-      document.getElementById('lensRoomCode').textContent=currentRoomCode;
-      document.getElementById('lensQr').src='https://api.qrserver.com/v1/create-qr-code/?size=200x200&margin=10&data='+currentRoomCode;
-      setTimeout(()=>createLensPeer(),500);
+      if(isSwitchingRole&&switchRetryCount<5){
+        switchRetryCount++;
+        debugLog('房间号暂未释放，第'+switchRetryCount+'次重试...','lens');
+        setTimeout(()=>createLensPeer(),800);
+      }else{
+        debugLog('房间号被占用，重新生成...','lens');
+        currentRoomCode=generateRoomCode();
+        document.getElementById('lensRoomCode').textContent=currentRoomCode;
+        document.getElementById('lensQr').src='https://api.qrserver.com/v1/create-qr-code/?size=200x200&margin=10&data='+currentRoomCode;
+        setTimeout(()=>createLensPeer(),500);
+      }
     }else if(err.type==='network'||err.type==='socket-error'||err.type==='server-error'){
       toast('信令服务器连接失败，请检查网络后重试');
     }else if(err.type==='peer-unavailable'){
