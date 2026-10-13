@@ -315,7 +315,19 @@ body{display:flex;flex-direction:column;min-height:100vh;background:radial-gradi
       <input type="text" class="activate-input" id="activateCode" placeholder="输入激活码" maxlength="19" oninput="formatCode(this)">
       <button class="btn btn-orange" onclick="activatePremium()">立即激活</button>
     </div>
-    <div class="pay-info"><b>如何获取激活码？</b><br>1. 转账 ¥9.9 至开发者<br>2. 备注"合拍 CoShot激活"<br>3. 开发者发送 16 位激活码<br>4. 输入上方激活码永久解锁</div>
+    <div class="pay-qr-box" style="text-align:center;margin:14px 0;padding:14px;background:#0a0a15;border-radius:12px;border:1px solid var(--border)">
+      <div style="font-size:14px;font-weight:700;margin-bottom:10px;color:var(--txt)">📱 微信扫码支付 ¥9.9</div>
+      <div style="width:160px;height:160px;margin:0 auto;background:#fff;border-radius:8px;display:flex;align-items:center;justify-content:center;color:#999;font-size:12px" id="payQrPlaceholder">
+        替换为你的微信收款码
+      </div>
+      <div style="font-size:11px;color:var(--txt2);margin-top:8px;line-height:1.6">
+        1. 微信扫码支付 ¥9.9<br>
+        2. 备注"合拍激活"<br>
+        3. 开发者发送16位激活码<br>
+        4. 输入上方激活码永久解锁
+      </div>
+    </div>
+    <div class="pay-info"><b>如何获取激活码？</b><br>1. 扫码上方二维码支付 ¥9.9<br>2. 备注"合拍 CoShot激活"<br>3. 开发者发送 16 位激活码<br>4. 输入上方激活码永久解锁</div>
   </div>
   <div class="card hidden" id="premiumUnlockedCard">
     <div style="text-align:center;padding:14px 0">
@@ -393,9 +405,10 @@ body{display:flex;flex-direction:column;min-height:100vh;background:radial-gradi
       <button class="ctrl-btn" onclick="mirrorTakePhoto()"><span class="icon">📸</span><span>远程拍照</span></button>
       <button class="ctrl-btn" onclick="mirrorFlipCamera()"><span class="icon">🔄</span><span>切换镜头</span></button>
       <button class="ctrl-btn" id="mirrorFlashBtn" onclick="mirrorToggleFlash()"><span class="icon">⚡</span><span>闪光灯</span></button>
+      <button class="ctrl-btn" onclick="document.getElementById('photoSection').scrollIntoView({behavior:'smooth'})"><span class="icon">🖼️</span><span>照片</span></button>
       <button class="ctrl-btn" onclick="confirmSwitchRole()"><span class="icon">🔀</span><span>切换角色</span></button>
     </div>
-    <div class="photo-section">
+    <div class="photo-section" id="photoSection">
       <div class="photo-header"><div class="title">拍摄的照片 <span id="photoCount">(0)</span></div></div>
       <div id="noPhotoTip" class="no-photo">还没有照片，点击上方"远程拍照"试试</div>
       <div class="photo-grid" id="photoGrid"></div>
@@ -527,16 +540,32 @@ function doAutoConnect(){
 }
 
 // ===== 角色切换 =====
+let switchPending=false;
 function confirmSwitchRole(){
   const target=currentRole==='lens'?'查看端':'拍摄端';
   document.getElementById('switchTargetRole').textContent=target;
   document.getElementById('switchRoleModal').classList.add('active');
 }
-function closeSwitchModal(){document.getElementById('switchRoleModal').classList.remove('active')}
+function closeSwitchModal(){document.getElementById('switchRoleModal').classList.remove('active');switchPending=false}
 function doSwitchRole(){
   document.getElementById('switchRoleModal').classList.remove('active');
   const info=getPairInfo();
   if(!info){toast('切换角色，请重新创建/加入房间');goHome();return}
+  // 发送切换请求给对方
+  if(dataChannels.length>0&&dataChannels[0].open){
+    switchPending=true;
+    toast('已发送切换请求，等待对方确认...');
+    sendControl({type:'switch-request',from:currentRole});
+    // 10秒超时
+    setTimeout(()=>{if(switchPending){switchPending=false;toast('对方未响应，切换取消')}},10000);
+  }else{
+    // 没有连接，直接本地切换
+    executeSwitchRole();
+  }
+}
+function executeSwitchRole(){
+  const info=getPairInfo();
+  if(!info){goHome();return}
   const newRole=currentRole==='lens'?'mirror':'lens';
   savePairInfo(info.code,newRole);
   stopAll();
@@ -544,7 +573,17 @@ function doSwitchRole(){
   setTimeout(()=>{
     if(newRole==='lens'){lensCreateRoom(info.code)}
     else{goPage('mirror');document.getElementById('connectingRoomCode').textContent=info.code;document.getElementById('mirrorConnecting').classList.remove('hidden');setStatus('mirror','连接中','wait');doMirrorConnect(info.code)}
-  },1000);
+  },1500);
+}
+function handleSwitchRequest(fromRole){
+  // 对方请求切换角色
+  const target=fromRole==='lens'?'拍摄端':'查看端';
+  if(confirm('对方请求切换角色，切换后你将变为'+target+'，是否同意？')){
+    sendControl({type:'switch-accept'});
+    executeSwitchRole();
+  }else{
+    sendControl({type:'switch-reject'});
+  }
 }
 
 // ===== 页面导航 =====
@@ -711,6 +750,9 @@ function setupLensPeerHandlers(){
       if(msg.type==='flip')lensFlipCamera();
       if(msg.type==='flash')lensToggleFlash();
       if(msg.type==='zoom')lensZoom(msg.value);
+      if(msg.type==='switch-request')handleSwitchRequest(msg.from);
+      if(msg.type==='switch-accept'){switchPending=false;executeSwitchRole()}
+      if(msg.type==='switch-reject'){switchPending=false;toast('对方拒绝了角色切换')}
     });
     conn.on('close',()=>{
       const idx=dataChannels.indexOf(conn);if(idx>-1)dataChannels.splice(idx,1);
@@ -834,6 +876,9 @@ async function doMirrorConnect(roomCode){
         }
         if(msg.type==='photo'){addPhoto(msg.data);document.getElementById('mirrorFlash').classList.add('flash');setTimeout(()=>document.getElementById('mirrorFlash').classList.remove('flash'),200)}
         if(msg.type==='error'){debugLog('拍摄端错误：'+msg.message);toast('连接失败：'+msg.message);goHome()}
+        if(msg.type==='switch-request')handleSwitchRequest(msg.from);
+        if(msg.type==='switch-accept'){switchPending=false;executeSwitchRole()}
+        if(msg.type==='switch-reject'){switchPending=false;toast('对方拒绝了角色切换')}
       });
       conn.on('error',(err)=>{debugLog('数据通道错误：'+err.type);console.error('数据通道错误:',err)});
       conn.on('close',()=>debugLog('数据通道已关闭'));
